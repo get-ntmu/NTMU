@@ -1,5 +1,7 @@
 #include "NTMU.h"
-#include "EnumPEResources.h"
+#include "MainWindow.h"
+
+HINSTANCE g_hinst;
 
 int WINAPI wWinMain(
 	_In_     HINSTANCE hInstance,
@@ -8,19 +10,16 @@ int WINAPI wWinMain(
 	_In_     int       nShowCmd
 )
 {
-	IEnumResources *pEnum = nullptr;
-	if (FAILED(CEnumPEResources_CreateInstance(L"C:\\Windows\\SystemResources\\shell32.dll.mun", &pEnum)))
+	g_hinst = hInstance;
+	
+	CMainWindow::RegisterWindowClass();
+	CMainWindow *pMainWnd = CMainWindow::CreateAndShow(nShowCmd);
+	
+	MSG msg;
+	while (GetMessageW(&msg, NULL, 0, 0))
 	{
-		MessageBoxW(NULL, L"FUCK", L"FUCK", MB_ICONERROR);
-		return -1;
+		TranslateMessage(&msg);
+		DispatchMessageW(&msg);
 	}
-
-	pEnum->Enum([](LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID lpData, DWORD cbData) -> BOOL {
-		__debugbreak();
-		return TRUE;
-	});
-
-	pEnum->Destroy();
-
 	return 0;
 }

@@ -112,6 +112,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalManifestDependencies>"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'";%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -131,13 +134,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DPIHelpers.cpp" />
     <ClCompile Include="EnumPEResources.cpp" />
+    <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="NTMU.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DPIHelpers.h" />
     <ClInclude Include="EnumPEResources.h" />
     <ClInclude Include="EnumResources.h" />
+    <ClInclude Include="MainWindow.h" />
     <ClInclude Include="NTMU.h" />
+    <ClInclude Include="Resource.h" />
+    <ClInclude Include="Window.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="NTMU.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

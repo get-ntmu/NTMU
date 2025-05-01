@@ -1,0 +1,4 @@
+#include <windows.h>
+#include "Resource.h"
+
+IDI_NTMU  ICON  "res\\ntmu.ico"
