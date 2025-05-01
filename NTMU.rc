@@ -2,3 +2,30 @@
 #include "Resource.h"
 
 IDI_NTMU  ICON  "res\\ntmu.ico"
+
+IDM_MAINMENU MENU
+{
+	POPUP "&File"
+	{
+		MENUITEM "&Open Pack...\tCtrl+O",                IDM_FILEOPEN
+		MENUITEM SEPARATOR
+		MENUITEM "E&xit\tAlt+F4"                         IDM_FILEEXIT
+	}
+	POPUP "&Help"
+	{
+		MENUITEM "&About Windows NT Modding Utility..." IDM_HELPABOUT
+	}
+}
+
+IDA_MAIN ACCELERATORS
+{
+	"O", IDM_FILEOPEN, VIRTKEY, CONTROL
+}
+
+STRINGTABLE
+{
+	IDS_MAINWND        "Windows NT Modding Utility"
+	IDS_PACKNAME       "Name:"
+	IDS_PACKAUTHOR     "Author:"
+	IDS_PACKVERSION    "Version:"
+}

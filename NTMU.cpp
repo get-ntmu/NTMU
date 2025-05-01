@@ -14,12 +14,18 @@ int WINAPI wWinMain(
 	
 	CMainWindow::RegisterWindowClass();
 	CMainWindow *pMainWnd = CMainWindow::CreateAndShow(nShowCmd);
+
+	HWND hMainWnd = pMainWnd->GetHWND();
+	HACCEL hMainAccel = pMainWnd->GetAccel();
 	
 	MSG msg;
 	while (GetMessageW(&msg, NULL, 0, 0))
 	{
-		TranslateMessage(&msg);
-		DispatchMessageW(&msg);
+		if (!TranslateAcceleratorW(hMainWnd, hMainAccel, &msg))
+		{
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
+		}
 	}
 	return 0;
 }
