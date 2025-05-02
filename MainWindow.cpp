@@ -118,6 +118,7 @@ void CMainWindow::_OnCreate()
 		WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
 		_hwnd, (HMENU)IDC_APPLY, NULL, NULL
 	);
+	EnableWindow(_hwndApply, FALSE);
 
 	_hwndText = CreateWindowExW(
 		WS_EX_CLIENTEDGE, WC_EDITW, nullptr,
@@ -187,6 +188,9 @@ void CMainWindow::_UpdateFonts()
 	UPDATEFONT(_hwndApply);
 #undef UPDATEFONT
 
+	if (_pPreviewWnd)
+		_pPreviewWnd->SetFont(_hfMessage);
+
 	// Update text box font (monospace)
 	if (_hfMonospace)
 	{
@@ -212,7 +216,7 @@ void CMainWindow::_UpdateLayout()
 	const int marginX = _XDUToXPix(6);
 	const int marginY = _YDUToYPix(4);
 
-	constexpr int nWindows = (MI_COUNT * 2) + 3;
+	constexpr int nWindows = (MI_COUNT * 2) + 5;
 	HDWP hdwp = BeginDeferWindowPos(nWindows);
 
 	// Position and size labels
@@ -273,6 +277,13 @@ void CMainWindow::_UpdateLayout()
 		paneWidth, rightPaneHeight,
 		SWP_NOZORDER
 	);
+	hdwp = DeferWindowPos(
+		hdwp, _hwndPreview, NULL,
+		rightPaneX, panesY,
+		paneWidth, rightPaneHeight,
+		SWP_NOZORDER
+	);
+	InvalidateRect(_hwndPreview, nullptr, TRUE);
 
 	EndDeferWindowPos(hdwp);
 }

@@ -7,7 +7,6 @@ class CPreviewWindow : public CWindow<CPreviewWindow, c_szPreviewWindowClass>
 {
 private:
 	WCHAR _szNoPreview[MAX_PATH];
-	WCHAR _szPreviewFailed[MAX_PATH];
 	HFONT _hfMessage;
 
 	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;

@@ -9,6 +9,38 @@ LRESULT CPreviewWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 			return 0;
 		case WM_PAINT:
 		{
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
+			RECT rc;
+			GetClientRect(hWnd, &rc);
+
+			FillRect(hdc, &rc, (HBRUSH)(COLOR_BTNFACE + 1));
+			
+			LOGBRUSH lb = { 0 };
+			lb.lbColor = GetSysColor(COLOR_GRAYTEXT);
+			lb.lbStyle = PS_SOLID;
+			HPEN hpen = ExtCreatePen(PS_COSMETIC | PS_ALTERNATE, 1, &lb, 0, nullptr);
+			HPEN hpenOld = (HPEN)SelectObject(hdc, hpen);
+			
+			MoveToEx(hdc, rc.left, rc.top, nullptr);
+			LineTo(hdc, rc.right - 1, rc.top);
+			LineTo(hdc, rc.right - 1, rc.bottom - 1);
+			LineTo(hdc, rc.left, rc.bottom - 1);
+			LineTo(hdc, rc.left, rc.top);
+
+			HFONT hfOld = (HFONT)SelectObject(hdc, _hfMessage);
+			int bkOld = SetBkMode(hdc, TRANSPARENT);
+
+			DrawTextW(
+				hdc, _szNoPreview, -1,
+				&rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_WORDBREAK
+			);
+
+			SetBkMode(hdc, bkOld);
+			SelectObject(hdc, hfOld);
+			SelectObject(hdc, hpenOld);
+			DeleteObject(hpen);
+			EndPaint(hWnd, &ps);
 			return 0;
 		}
 		default:
@@ -19,7 +51,6 @@ LRESULT CPreviewWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 void CPreviewWindow::_OnCreate()
 {
 	LoadStringW(g_hinst, IDS_NOPREVIEW, _szNoPreview, MAX_PATH);
-	LoadStringW(g_hinst, IDS_PREVIEWFAIL, _szPreviewFailed, MAX_PATH);
 }
 
 // static
@@ -54,7 +85,6 @@ CPreviewWindow *CPreviewWindow::CreateAndShow(HWND hwndParent)
 
 CPreviewWindow::CPreviewWindow()
 	: _szNoPreview{ 0 }
-	, _szPreviewFailed{ 0 }
 	, _hfMessage(NULL)
 {
 

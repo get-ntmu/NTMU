@@ -9,8 +9,9 @@
 
 #define IDM_MAINMENU           200
 #define IDM_FILEOPEN           201
-#define IDM_FILEEXIT           202
-#define IDM_HELPABOUT          203
+#define IDM_FILEUNLOAD         202
+#define IDM_FILEEXIT           203
+#define IDM_HELPABOUT          204
 
 #define IDA_MAIN               300
 
@@ -20,7 +21,6 @@
 #define IDS_PACKVERSION        403
 #define IDS_APPLY              404
 #define IDS_NOPREVIEW          405
-#define IDS_PREVIEWFAIL        406
 
 #define IDD_ABOUT              500
 #define IDC_VERSION            501
