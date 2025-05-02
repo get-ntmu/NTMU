@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <commctrl.h>
+#include "wil/com.h"
 #include "Resource.h"
 
 extern HINSTANCE g_hinst;
