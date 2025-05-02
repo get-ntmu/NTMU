@@ -3,6 +3,8 @@
 
 static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 
+#define IDC_APPLY        1000
+
 class CMainWindow : public CWindow<CMainWindow, c_szMainWindowClass>
 {
 private:
@@ -20,9 +22,18 @@ private:
 	HWND _rghwndLabels[MI_COUNT];
 	HWND _rghwndMetas[MI_COUNT];
 
+	HWND _hwndProgress;
+	HWND _hwndApply;
+
+	HWND _hwndText;
+	HWND _hwndOptions;
+
 	HFONT _hfMessage;
+	HFONT _hfMonospace;
 	int _cxMsgFontChar;
 	int _cyMsgFontChar;
+
+	static INT_PTR CALLBACK s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 	virtual LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
@@ -41,6 +52,7 @@ private:
 	void _UpdateLayout();
 
 public:
+	CMainWindow();
 	~CMainWindow();
 
 	static HRESULT RegisterWindowClass();

@@ -55,6 +55,12 @@ protected:
 	}
 
 public:
+	CWindow()
+		: _hwnd(NULL)
+	{
+
+	}
+
 	static CImpl *Create(DWORD dwExStyle, LPCWSTR lpWindowName, DWORD dwStyle,
 		int x, int y, int cx, int cy, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, void *pParam)
 	{
