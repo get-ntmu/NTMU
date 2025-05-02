@@ -243,9 +243,9 @@ void CMainWindow::_UpdateLayout()
 	);
 	
 	// Position and size panes
-	const int panesY = marginY + (labelHeight + labelMargin) * MI_COUNT;
+	const int panesY = (marginY * 2) + (labelHeight * MI_COUNT) + (labelMargin * (MI_COUNT - 1));
 	const int paneWidth = (RECTWIDTH(rcClient) - (marginX * 2)) / 2 - (marginX / 2);
-	const int panesHeight = buttonX - (marginY * 2) - panesY;
+	const int panesHeight = buttonY - marginY - panesY;
 	hdwp = DeferWindowPos(
 		hdwp, _hwndText, NULL,
 		marginX, panesY,
