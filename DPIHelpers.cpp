@@ -38,3 +38,25 @@ BOOL DPIHelpers::AdjustWindowRectForDPI(LPRECT lprc, DWORD dwStyle, DWORD dwExSt
 
 	return AdjustWindowRectEx(lprc, dwStyle, fMenu, dwExStyle);
 }
+
+int DPIHelpers::GetSystemMetricsForDPI(int nIndex, UINT dpi)
+{
+	typedef int (WINAPI *GetSystemMetricsForDpi_t)(int nIndex, UINT dpi);
+	static GetSystemMetricsForDpi_t pfnGetSystemMetricsForDpi =
+		(GetSystemMetricsForDpi_t)GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetSystemMetricsForDpi");
+	if (pfnGetSystemMetricsForDpi)
+		return pfnGetSystemMetricsForDpi(nIndex, dpi);
+
+	return GetSystemMetrics(nIndex);
+}
+
+BOOL DPIHelpers::SystemParametersInfoForDPI(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni, UINT dpi)
+{
+	typedef BOOL (WINAPI *SystemParametersInfoForDpi_t)(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWinIni, UINT dpi);
+	static SystemParametersInfoForDpi_t pfnSystemParametersInfoForDpi =
+		(SystemParametersInfoForDpi_t)GetProcAddress(GetModuleHandleW(L"user32.dll"), "SystemParametersInfoForDpi");
+	if (pfnSystemParametersInfoForDpi)
+		return pfnSystemParametersInfoForDpi(uiAction, uiParam, pvParam, fWinIni, dpi);
+
+	return SystemParametersInfoW(uiAction, uiParam, pvParam, fWinIni);
+}

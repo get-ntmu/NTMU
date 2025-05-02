@@ -6,6 +6,7 @@ static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 class CMainWindow : public CWindow<CMainWindow, c_szMainWindowClass>
 {
 private:
+	UINT _dpi;
 	HACCEL _hAccel;
 
 	enum METAINDEX
@@ -25,8 +26,19 @@ private:
 
 	virtual LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
+	inline int _XDUToXPix(int x)
+	{
+		return MulDiv(x, _cxMsgFontChar, 4);
+	}
+
+	inline int _YDUToYPix(int y)
+	{
+		return MulDiv(y, _cyMsgFontChar, 8);
+	}
+
 	void _OnCreate();
 	void _UpdateFonts();
+	void _UpdateLayout();
 
 public:
 	~CMainWindow();

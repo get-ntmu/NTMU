@@ -19,6 +19,16 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					break;
 			}
 			return 0;
+		case WM_SETTINGCHANGE:
+			if (wParam != SPI_SETNONCLIENTMETRICS)
+				return 0;
+			// fallthrough
+		case WM_DPICHANGED:
+			_UpdateFonts();
+			return 0;
+		case WM_SIZE:
+			_UpdateLayout();
+			return 0;
 		default:
 			return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 	}
@@ -49,11 +59,83 @@ void CMainWindow::_OnCreate()
 
 void CMainWindow::_UpdateFonts()
 {
+	_dpi = DPIHelpers::GetWindowDPI(_hwnd);
+
 	if (_hfMessage)
 	{
 		DeleteObject(_hfMessage);
 		_hfMessage = NULL;
 	}
+
+	NONCLIENTMETRICSW ncm = { sizeof(ncm) };
+	DPIHelpers::SystemParametersInfoForDPI(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, FALSE, _dpi);
+	_hfMessage = CreateFontIndirectW(&ncm.lfMessageFont);
+
+	HDC hdc = CreateCompatibleDC(NULL);
+	SelectObject(hdc, _hfMessage);
+	
+	TEXTMETRICW tm = { 0 };
+	GetTextMetricsW(hdc, &tm);
+
+	_cyMsgFontChar = tm.tmHeight;
+	if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH)
+	{
+		static const WCHAR wszAvgChars[] = L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+		SIZE size;
+		if (GetTextExtentPoint32W(hdc, wszAvgChars, ARRAYSIZE(wszAvgChars) - 1, &size))
+		{
+			// The above string is 26 * 2 characters. + 1 rounds the result.
+			_cxMsgFontChar = ((size.cx / 26) + 1) / 2;
+		}
+	}
+	else
+	{
+		_cxMsgFontChar = tm.tmAveCharWidth;
+	}
+
+	for (HWND hwnd : _rghwndLabels)
+	{
+		SendMessageW(hwnd, WM_SETFONT, (WPARAM)_hfMessage, TRUE);
+	}
+	for (HWND hwnd : _rghwndMetas)
+	{
+		SendMessageW(hwnd, WM_SETFONT, (WPARAM)_hfMessage, TRUE);
+	}
+
+	_UpdateLayout();
+}
+
+void CMainWindow::_UpdateLayout()
+{
+	RECT rcClient;
+	GetClientRect(_hwnd, &rcClient);
+
+	const int marginX = _XDUToXPix(6);
+	const int marginY = _YDUToYPix(4);
+
+	constexpr int nWindows = (MI_COUNT * 2);
+	HDWP hdwp = BeginDeferWindowPos(nWindows);
+
+	const int labelWidth = _XDUToXPix(30);
+	const int labelHeight = _YDUToYPix(10);
+	const int metaWidth = RECTWIDTH(rcClient) - labelWidth - (2 * marginX);
+	const int metaX = marginX + labelWidth;
+	for (int i = 0; i < MI_COUNT; i++)
+	{
+		hdwp = DeferWindowPos(
+			hdwp, _rghwndLabels[i], NULL,
+			marginX, marginY + (labelHeight * i),
+			labelWidth, labelHeight, SWP_NOZORDER
+		);
+		hdwp = DeferWindowPos(
+			hdwp, _rghwndMetas[i], NULL,
+			metaX, marginY + (labelHeight * i),
+			metaWidth, labelHeight, SWP_NOZORDER
+		);
+	}
+
+	EndDeferWindowPos(hdwp);
 }
 
 CMainWindow::~CMainWindow()
