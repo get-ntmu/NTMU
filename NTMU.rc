@@ -29,6 +29,8 @@ STRINGTABLE
 	IDS_PACKAUTHOR     "Author:"
 	IDS_PACKVERSION    "Version:"
 	IDS_APPLY          "&Apply"
+	IDS_NOPREVIEW      "No preview"
+	IDS_PREVIEWFAIL    "Failed to display the preview image"
 }
 
 IDD_ABOUT DIALOG 0, 0, 200, 100

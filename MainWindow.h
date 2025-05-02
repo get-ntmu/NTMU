@@ -1,5 +1,6 @@
 #pragma once
 #include "Window.h"
+#include "PreviewWindow.h"
 
 static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 
@@ -26,7 +27,10 @@ private:
 	HWND _hwndApply;
 
 	HWND _hwndText;
+	HWND _hwndPreview;
 	HWND _hwndOptions;
+
+	CPreviewWindow *_pPreviewWnd;
 
 	HFONT _hfMessage;
 	HFONT _hfMonospace;
@@ -35,7 +39,7 @@ private:
 
 	static INT_PTR CALLBACK s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-	virtual LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
+	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
 	inline int _XDUToXPix(int x)
 	{

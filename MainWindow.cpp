@@ -126,6 +126,18 @@ void CMainWindow::_OnCreate()
 		_hwnd, NULL, NULL, NULL
 	);
 
+	_hwndOptions = CreateWindowExW(
+		WS_EX_CLIENTEDGE, WC_TREEVIEWW, nullptr,
+		WS_CHILD | WS_VISIBLE,
+		0, 0, 0, 0,
+		_hwnd, NULL, NULL, NULL
+	);
+
+	CPreviewWindow::RegisterWindowClass();
+	_pPreviewWnd = CPreviewWindow::CreateAndShow(_hwnd);
+	if (_pPreviewWnd)
+		_hwndPreview = _pPreviewWnd->GetHWND();
+
 	_UpdateFonts();
 }
 
@@ -250,6 +262,15 @@ void CMainWindow::_UpdateLayout()
 		hdwp, _hwndText, NULL,
 		marginX, panesY,
 		paneWidth, panesHeight,
+		SWP_NOZORDER
+	);
+
+	const int rightPaneX = (marginX * 2) + paneWidth;
+	const int rightPaneHeight = (panesHeight - marginY) / 2;
+	hdwp = DeferWindowPos(
+		hdwp, _hwndOptions, NULL,
+		rightPaneX, panesY + rightPaneHeight + marginY,
+		paneWidth, rightPaneHeight,
 		SWP_NOZORDER
 	);
 
