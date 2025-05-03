@@ -140,6 +140,7 @@
   <ItemGroup>
     <ClCompile Include="DPIHelpers.cpp" />
     <ClCompile Include="EnumPEResources.cpp" />
+    <ClCompile Include="EnumRESResources.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="NTMU.cpp" />
     <ClCompile Include="PreviewWindow.cpp" />
@@ -148,6 +149,7 @@
     <ClInclude Include="DPIHelpers.h" />
     <ClInclude Include="EnumPEResources.h" />
     <ClInclude Include="EnumResources.h" />
+    <ClInclude Include="EnumRESResources.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="NTMU.h" />
     <ClInclude Include="PreviewWindow.h" />
