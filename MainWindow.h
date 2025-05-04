@@ -1,6 +1,7 @@
 #pragma once
 #include "Window.h"
 #include "PreviewWindow.h"
+#include "pack.h"
 
 static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 
@@ -37,6 +38,8 @@ private:
 	int _cxMsgFontChar;
 	int _cyMsgFontChar;
 
+	CPack _pack;
+
 	static INT_PTR CALLBACK s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
@@ -54,6 +57,9 @@ private:
 	void _OnCreate();
 	void _UpdateFonts();
 	void _UpdateLayout();
+
+	void _LoadPack(LPCWSTR pszPath);
+	void _UnloadPack();
 
 public:
 	CMainWindow();

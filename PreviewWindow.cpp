@@ -157,6 +157,17 @@ void CPreviewWindow::SetFont(HFONT hFont)
 
 HRESULT CPreviewWindow::SetImage(LPCWSTR pszPath)
 {
+	if (!pszPath || !pszPath[0])
+	{
+		if (_pbmPreview)
+		{
+			delete _pbmPreview;
+			_pbmPreview = nullptr;
+		}
+		InvalidateRect(_hwnd, nullptr, TRUE);
+		return S_OK;
+	}
+
 	wil::com_ptr<IWICBitmapDecoder> pDecoder;
 	wil::com_ptr<IWICBitmapFrameDecode> pFrame;
 	wil::com_ptr<IWICFormatConverter> pConverter;
@@ -184,5 +195,6 @@ HRESULT CPreviewWindow::SetImage(LPCWSTR pszPath)
 	_pbmPreview->LockBits(&rect, Gdiplus::ImageLockModeWrite, PixelFormat32bppPARGB, &bd);
 	RETURN_IF_FAILED(pConverter->CopyPixels(nullptr, bd.Stride, bd.Stride * height, (LPBYTE)bd.Scan0));
 	_pbmPreview->UnlockBits(&bd);
+	InvalidateRect(_hwnd, nullptr, TRUE);
 	return S_OK;
 }

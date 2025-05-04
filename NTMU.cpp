@@ -1,7 +1,8 @@
 #include "NTMU.h"
 #include "MainWindow.h"
 
-HINSTANCE g_hinst;
+HINSTANCE g_hinst    = NULL;
+HWND      g_hwndMain = NULL;
 
 int WINAPI wWinMain(
 	_In_     HINSTANCE hInstance,
@@ -15,13 +16,13 @@ int WINAPI wWinMain(
 	CMainWindow::RegisterWindowClass();
 	CMainWindow *pMainWnd = CMainWindow::CreateAndShow(nShowCmd);
 
-	HWND hMainWnd = pMainWnd->GetHWND();
+	g_hwndMain = pMainWnd->GetHWND();
 	HACCEL hMainAccel = pMainWnd->GetAccel();
 	
 	MSG msg;
 	while (GetMessageW(&msg, NULL, 0, 0))
 	{
-		if (!TranslateAcceleratorW(hMainWnd, hMainAccel, &msg))
+		if (!TranslateAcceleratorW(g_hwndMain, hMainAccel, &msg))
 		{
 			TranslateMessage(&msg);
 			DispatchMessageW(&msg);

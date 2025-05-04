@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "DPIHelpers.h"
-#include <stdio.h>
+#include <locale>
+#include <codecvt>
 
 INT_PTR CALLBACK CMainWindow::s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -54,6 +55,28 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_COMMAND:
 			switch (LOWORD(wParam))
 			{
+				case IDM_FILEOPEN:
+				{
+					WCHAR szFilePath[MAX_PATH] = { 0 };
+					OPENFILENAMEW ofn = { 0 };
+					ofn.lStructSize = sizeof(ofn);
+					ofn.hwndOwner = hWnd;
+					ofn.lpstrFilter = L"INI Files (*.ini)\0*.ini\0All Files (*.*)\0*.*\0\0";
+					ofn.lpstrFile = szFilePath;
+					ofn.nMaxFile = MAX_PATH;
+					ofn.lpstrDefExt = L"ini";
+					ofn.Flags = OFN_EXPLORER | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_PATHMUSTEXIST;
+					if (GetOpenFileNameW(&ofn))
+					{
+						_LoadPack(szFilePath);
+					}
+					break;
+				}
+				case IDM_FILEUNLOAD:
+				{
+					_UnloadPack();
+					break;
+				}
 				case IDM_FILEEXIT:
 					PostMessageW(hWnd, WM_CLOSE, 0, 0);
 					break;
@@ -87,6 +110,7 @@ DWP:
 
 void CMainWindow::_OnCreate()
 {
+	_UnloadPack();
 	_hAccel = LoadAcceleratorsW(g_hinst, MAKEINTRESOURCEW(IDA_MAIN));
 
 	for (int i = 0; i < MI_COUNT; i++)
@@ -122,7 +146,7 @@ void CMainWindow::_OnCreate()
 
 	_hwndText = CreateWindowExW(
 		WS_EX_CLIENTEDGE, WC_EDITW, nullptr,
-		WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOHSCROLL | ES_READONLY,
+		WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_NOHIDESEL | ES_READONLY,
 		0, 0, 0, 0,
 		_hwnd, NULL, NULL, NULL
 	);
@@ -203,7 +227,6 @@ void CMainWindow::_UpdateFonts()
 	lf.lfHeight = -MulDiv(10, _dpi, 72);
 	_hfMonospace = CreateFontIndirectW(&lf);
 	SendMessageW(_hwndText, WM_SETFONT, (WPARAM)_hfMonospace, NULL);
-	SetWindowTextW(_hwndText, L"test");
 
 	_UpdateLayout();
 }
@@ -286,6 +309,61 @@ void CMainWindow::_UpdateLayout()
 	InvalidateRect(_hwndPreview, nullptr, TRUE);
 
 	EndDeferWindowPos(hdwp);
+}
+
+void CMainWindow::_LoadPack(LPCWSTR pszPath)
+{
+	if (!_pack.Load(pszPath))
+		return;
+
+	SetWindowTextW(_rghwndMetas[MI_NAME], _pack.GetName().c_str());
+	SetWindowTextW(_rghwndMetas[MI_AUTHOR], _pack.GetAuthor().c_str());
+	SetWindowTextW(_rghwndMetas[MI_VERSION], _pack.GetVersion().c_str());
+
+	EnableWindow(_hwndApply, TRUE);
+
+	if (_pPreviewWnd)
+		_pPreviewWnd->SetImage(_pack.GetPreviewPath().c_str());
+
+	std::wstring readmePath = _pack.GetReadmePath();
+	if (!readmePath.empty())
+	{
+		std::ifstream readmeFile(readmePath);
+		std::string buffer(
+			(std::istreambuf_iterator<char>(readmeFile)),
+			std::istreambuf_iterator<char>()
+		);
+
+		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+		std::wstring readmeText = converter.from_bytes(buffer);
+
+		// Standardize line endings
+		size_t pos = 0;
+		while ((pos = readmeText.find(L'\n', pos)) != std::wstring::npos)
+		{
+			readmeText.replace(pos, 1, L"\r\n");
+			pos += 2;
+		}
+
+		SetWindowTextW(_hwndText, readmeText.c_str());
+	}
+}
+
+void CMainWindow::_UnloadPack()
+{
+	_pack.Reset();
+
+	for (int i = 0; i < MI_COUNT; i++)
+	{
+		SetWindowTextW(_rghwndMetas[i], L"");
+	}
+
+	SetWindowTextW(_hwndText, L"");
+
+	EnableWindow(_hwndApply, FALSE);
+
+	if (_pPreviewWnd)
+		_pPreviewWnd->SetImage(nullptr);
 }
 
 CMainWindow::CMainWindow()

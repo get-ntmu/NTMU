@@ -33,6 +33,15 @@
     <ClCompile Include="EnumRESResources.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="INI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Pack.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NTMU.h">
@@ -60,6 +69,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EnumRESResources.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="INI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Pack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
