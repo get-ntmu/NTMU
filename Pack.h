@@ -4,9 +4,7 @@
 
 class CPack
 {
-private:
-	WCHAR _szPackFolder[MAX_PATH];
-
+public:
 	struct PackRadioOption
 	{
 		std::wstring name;
@@ -18,9 +16,11 @@ private:
 		UINT uValue;
 		std::wstring id;
 		std::wstring name;
-		bool fRadio;
 		std::vector<PackRadioOption> radios;
 	};
+
+private:
+	WCHAR _szPackFolder[MAX_PATH];
 
 	std::wstring _name;
 	std::wstring _author;
@@ -59,11 +59,15 @@ private:
 
 	PackOption *_FindOption(LPCWSTR pszID);
 	bool _ValidateAndConstructPath(LPCWSTR pszPath, std::wstring &out);
+	static bool _ValidateOptionValue(PackOption &opt, UINT uValue);
 
 public:
 	void Reset();
 	bool Load(LPCWSTR pszPath);
 	bool Apply();
+
+	UINT GetOptionValue(LPCWSTR pszName);
+	bool SetOptionValue(LPCWSTR pszName, UINT uValue);
 
 	std::wstring GetName()
 	{
@@ -88,6 +92,11 @@ public:
 	std::wstring GetReadmePath()
 	{
 		return _readmePath;
+	}
+
+	const std::vector<PackOption> &GetOptions()
+	{
+		return _options;
 	}
 };
 

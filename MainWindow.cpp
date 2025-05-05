@@ -58,6 +58,8 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 			{
 				case IDM_FILEOPEN:
 				{
+					_UnloadPack();
+
 					WCHAR szFilePath[MAX_PATH] = { 0 };
 					OPENFILENAMEW ofn = { 0 };
 					ofn.lStructSize = sizeof(ofn);
