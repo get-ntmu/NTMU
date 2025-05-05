@@ -97,8 +97,6 @@ LRESULT CPreviewWindow::_OnCreate()
 		return -1;
 
 	LoadStringW(g_hinst, IDS_NOPREVIEW, _szNoPreview, MAX_PATH);
-
-	//SetImage(L"C:\\Users\\Aubrey\\Pictures\\patchy.png");
 	return 0;
 }
 

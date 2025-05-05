@@ -2,6 +2,7 @@
 #include "DPIHelpers.h"
 #include <locale>
 #include <codecvt>
+#include <pathcch.h>
 
 INT_PTR CALLBACK CMainWindow::s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -80,6 +81,50 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDM_FILEEXIT:
 					PostMessageW(hWnd, WM_CLOSE, 0, 0);
 					break;
+				case IDM_TOOLSKILLEXPLORER:
+				{
+					DWORD dwExplorerPID = 0;
+					HWND hwndShell = FindWindowW(L"Shell_TrayWnd", nullptr);
+					if (!hwndShell)
+						break;
+					GetWindowThreadProcessId(hwndShell, &dwExplorerPID);
+					if (!dwExplorerPID)
+						break;
+
+					HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, dwExplorerPID);
+					if (!hProcess)
+						break;
+
+					TerminateProcess(hProcess, 0);
+					CloseHandle(hProcess);
+					break;
+				}
+				case IDM_TOOLSCLEARICOCACHE:
+				{
+					WCHAR szExePath[MAX_PATH];
+					GetSystemDirectoryW(szExePath, MAX_PATH);
+					PathCchAppend(szExePath, MAX_PATH, L"ie4uinit.exe");
+
+					ShellExecuteW(
+						NULL, L"open",
+						szExePath, L"-show",
+						nullptr, SW_SHOWNORMAL
+					);
+					break;
+				}
+				case IDM_TOOLSSYSRESTORE:
+				{
+					WCHAR szExePath[MAX_PATH];
+					GetSystemDirectoryW(szExePath, MAX_PATH);
+					PathCchAppend(szExePath, MAX_PATH, L"SystemPropertiesProtection.exe");
+
+					ShellExecuteW(
+						NULL, L"open",
+						szExePath, nullptr,
+						nullptr, SW_SHOWNORMAL
+					);
+					break;
+				}
 				case IDM_HELPABOUT:
 					DialogBoxParamW(g_hinst, MAKEINTRESOURCEW(IDD_ABOUT), hWnd, s_AboutDlgProc, NULL);
 					break;
