@@ -1,5 +1,7 @@
 #pragma once
 #include <windows.h>
+#include <uxtheme.h>
+#include <vssym32.h>
 #include <commctrl.h>
 #include <stdio.h>
 #include "wil/com.h"

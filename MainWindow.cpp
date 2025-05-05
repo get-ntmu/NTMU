@@ -143,6 +143,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 			if (wParam != SPI_SETNONCLIENTMETRICS)
 				return 0;
 			// fallthrough
+		case WM_THEMECHANGED:
 		case WM_DPICHANGED:
 			_UpdateFonts();
 			return 0;
@@ -204,6 +205,7 @@ void CMainWindow::_OnCreate()
 		0, 0, 0, 0,
 		_hwnd, NULL, NULL, NULL
 	);
+	SetWindowTheme(_hwndOptions, L"Explorer", nullptr);
 
 	CPreviewWindow::RegisterWindowClass();
 	_pPreviewWnd = CPreviewWindow::CreateAndShow(_hwnd);
@@ -250,6 +252,8 @@ void CMainWindow::_UpdateFonts()
 		_cxMsgFontChar = tm.tmAveCharWidth;
 	}
 
+	DeleteDC(hdc);
+
 #define UPDATEFONT(hwnd) SendMessageW(hwnd, WM_SETFONT, (WPARAM)_hfMessage, TRUE)
 	for (int i = 0; i < MI_COUNT; i++)
 	{
@@ -274,6 +278,65 @@ void CMainWindow::_UpdateFonts()
 	lf.lfHeight = -MulDiv(10, _dpi, 72);
 	_hfMonospace = CreateFontIndirectW(&lf);
 	SendMessageW(_hwndText, WM_SETFONT, (WPARAM)_hfMonospace, NULL);
+
+	// Update checkboxes
+	if (_himlOptions)
+	{
+		ImageList_Destroy(_himlOptions);
+		_himlOptions = NULL;
+	}
+
+	int size = MulDiv(16, _dpi, 96);
+	_himlOptions = ImageList_Create(size, size, ILC_COLOR32, OII_COUNT, 1);
+
+	static const int s_rgParts[OII_COUNT]
+		= { BP_CHECKBOX, BP_CHECKBOX, BP_RADIOBUTTON, BP_RADIOBUTTON };
+	static const int s_rgStates[OII_COUNT]
+		= { CBS_UNCHECKEDNORMAL, CBS_CHECKEDNORMAL, RBS_UNCHECKEDNORMAL, RBS_CHECKEDNORMAL };
+
+	static const int s_rgClassicStates[OII_COUNT]
+		= { DFCS_BUTTONCHECK, DFCS_BUTTONCHECK | DFCS_CHECKED, DFCS_BUTTONRADIO, DFCS_BUTTONRADIO | DFCS_CHECKED };
+
+	hdc = CreateCompatibleDC(NULL);
+	if (hdc)
+	{
+		BITMAPINFO bi = { 0 };
+		bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
+		bi.bmiHeader.biWidth = size;
+		bi.bmiHeader.biHeight = size;
+		bi.bmiHeader.biPlanes = 1;
+		bi.bmiHeader.biBitCount = 32;
+		bi.bmiHeader.biCompression = BI_RGB;
+		HBITMAP hbmp = CreateDIBSection(hdc, &bi, DIB_RGB_COLORS, nullptr, NULL, 0);
+		if (hbmp)
+		{
+			HTHEME hTheme = OpenThemeData(NULL, L"Button");
+			RECT rc = { 0, 0, size, size };
+			for (int i = 0; i < OII_COUNT; i++)
+			{
+				HBITMAP hOld = (HBITMAP)SelectObject(hdc, hbmp);
+				FillRect(hdc, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
+				if (hTheme)
+				{
+					DTBGOPTS dtbg = { sizeof(dtbg), DTBG_DRAWSOLID };
+					DrawThemeBackgroundEx(hTheme, hdc, s_rgParts[i], s_rgStates[i], &rc, &dtbg);
+				}
+				else
+				{
+					DrawFrameControl(hdc, &rc, DFC_BUTTON, s_rgClassicStates[i]);
+				}
+				SelectObject(hdc, hOld);
+				ImageList_Add(_himlOptions, hbmp, NULL);
+			}
+
+			DeleteObject(hbmp);
+		}
+
+		DeleteDC(hdc);
+	}
+
+	TreeView_SetImageList(_hwndOptions, _himlOptions, TVSIL_NORMAL);
+	TreeView_SetImageList(_hwndOptions, _himlOptions, TVSIL_STATE);
 
 	_UpdateLayout();
 }
@@ -411,6 +474,21 @@ void CMainWindow::_UnloadPack()
 
 	if (_pPreviewWnd)
 		_pPreviewWnd->SetImage(nullptr);
+
+	TreeView_DeleteAllItems(_hwndOptions);
+
+	// debug
+	TVINSERTSTRUCTW tvis = { 0 };
+	tvis.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+	tvis.item.pszText = (LPWSTR)L"Test";
+	tvis.item.cchTextMax = sizeof("Test");
+	for (int i = 0; i < OII_COUNT; i++)
+	{
+		tvis.item.iImage = i;
+		tvis.item.iSelectedImage = i;
+		HTREEITEM fuck = TreeView_InsertItem(_hwndOptions, &tvis);
+		//__debugbreak();
+	}
 }
 
 CMainWindow::CMainWindow()

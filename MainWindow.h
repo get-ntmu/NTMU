@@ -31,6 +31,17 @@ private:
 	HWND _hwndPreview;
 	HWND _hwndOptions;
 
+	enum OPTIONSIMAGEINDEX
+	{
+		OII_CHECK = 0,
+		OII_CHECK_ON,
+		OII_RADIO,
+		OII_RADIO_ON,
+		OII_COUNT
+	};
+
+	HIMAGELIST _himlOptions;
+
 	CPreviewWindow *_pPreviewWnd;
 
 	HFONT _hfMessage;
