@@ -201,11 +201,23 @@ void CMainWindow::_OnCreate()
 
 	_hwndOptions = CreateWindowExW(
 		WS_EX_CLIENTEDGE, WC_TREEVIEWW, nullptr,
-		WS_CHILD | WS_VISIBLE,
+		WS_CHILD | WS_VISIBLE | TVS_FULLROWSELECT,
 		0, 0, 0, 0,
 		_hwnd, NULL, NULL, NULL
 	);
 	SetWindowTheme(_hwndOptions, L"Explorer", nullptr);
+
+	// Remove the ugly link cursor from hot tracking
+	SetWindowSubclass(_hwndOptions, [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) -> LRESULT
+	{
+		if (uMsg == WM_SETCURSOR)
+		{
+			static HCURSOR hCursor = LoadCursorW(NULL, IDC_ARROW);
+			SetCursor(hCursor);
+			return 0;
+		}
+		return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+	}, (UINT_PTR)this, NULL);
 
 	CPreviewWindow::RegisterWindowClass();
 	_pPreviewWnd = CPreviewWindow::CreateAndShow(_hwnd);
@@ -279,6 +291,20 @@ void CMainWindow::_UpdateFonts()
 	_hfMonospace = CreateFontIndirectW(&lf);
 	SendMessageW(_hwndText, WM_SETFONT, (WPARAM)_hfMonospace, NULL);
 
+	// Update options style (hot tracking looks bad on classic)
+	HTHEME hTheme = OpenThemeData(_hwndOptions, L"TreeView");
+	DWORD dwStyle = GetWindowLongPtrW(_hwndOptions, GWL_STYLE);
+	if (hTheme)
+	{
+		dwStyle |= TVS_TRACKSELECT;
+		CloseThemeData(hTheme);
+	}
+	else
+	{
+		dwStyle &= ~TVS_TRACKSELECT;
+	}
+	SetWindowLongPtrW(_hwndOptions, GWL_STYLE, dwStyle);
+
 	// Update checkboxes
 	if (_himlOptions)
 	{
@@ -287,7 +313,7 @@ void CMainWindow::_UpdateFonts()
 	}
 
 	int size = MulDiv(16, _dpi, 96);
-	_himlOptions = ImageList_Create(size, size, ILC_COLOR32, OII_COUNT, 1);
+	_himlOptions = ImageList_Create(size, size, ILC_COLOR32 | ILC_MASK, OII_COUNT, 1);
 
 	static const int s_rgParts[OII_COUNT]
 		= { BP_CHECKBOX, BP_CHECKBOX, BP_RADIOBUTTON, BP_RADIOBUTTON };
@@ -315,18 +341,34 @@ void CMainWindow::_UpdateFonts()
 			for (int i = 0; i < OII_COUNT; i++)
 			{
 				HBITMAP hOld = (HBITMAP)SelectObject(hdc, hbmp);
-				FillRect(hdc, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
 				if (hTheme)
 				{
 					DTBGOPTS dtbg = { sizeof(dtbg), DTBG_DRAWSOLID };
+					FillRect(hdc, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
 					DrawThemeBackgroundEx(hTheme, hdc, s_rgParts[i], s_rgStates[i], &rc, &dtbg);
 				}
 				else
 				{
-					DrawFrameControl(hdc, &rc, DFC_BUTTON, s_rgClassicStates[i]);
+					HBRUSH hbr = CreateSolidBrush(RGB(255, 0, 255));
+					FillRect(hdc, &rc, hbr);
+
+					int cSize = 13;
+					if (i == OII_RADIO || i == OII_RADIO_ON)
+						cSize = 12;
+					cSize = MulDiv(cSize, _dpi, 96);
+					int pos = (size - cSize) / 2;
+					RECT rcControl = {
+						pos,
+						pos,
+						pos + cSize,
+						pos + cSize
+					};
+
+					DrawFrameControl(hdc, &rcControl, DFC_BUTTON, s_rgClassicStates[i]);
+					DeleteObject(hbr);
 				}
 				SelectObject(hdc, hOld);
-				ImageList_Add(_himlOptions, hbmp, NULL);
+				ImageList_AddMasked(_himlOptions, hbmp, RGB(255, 0, 255));
 			}
 
 			DeleteObject(hbmp);
@@ -457,6 +499,18 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath)
 
 		SetWindowTextW(_hwndText, readmeText.c_str());
 	}
+
+	// debug
+	TVINSERTSTRUCTW tvis = { 0 };
+	tvis.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+	tvis.item.pszText = (LPWSTR)L"Test";
+	tvis.item.cchTextMax = sizeof("Test");
+	for (int i = 0; i < OII_COUNT; i++)
+	{
+		tvis.item.iImage = i;
+		tvis.item.iSelectedImage = i;
+		TreeView_InsertItem(_hwndOptions, &tvis);
+	}
 }
 
 void CMainWindow::_UnloadPack()
@@ -476,19 +530,6 @@ void CMainWindow::_UnloadPack()
 		_pPreviewWnd->SetImage(nullptr);
 
 	TreeView_DeleteAllItems(_hwndOptions);
-
-	// debug
-	TVINSERTSTRUCTW tvis = { 0 };
-	tvis.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-	tvis.item.pszText = (LPWSTR)L"Test";
-	tvis.item.cchTextMax = sizeof("Test");
-	for (int i = 0; i < OII_COUNT; i++)
-	{
-		tvis.item.iImage = i;
-		tvis.item.iSelectedImage = i;
-		HTREEITEM fuck = TreeView_InsertItem(_hwndOptions, &tvis);
-		//__debugbreak();
-	}
 }
 
 CMainWindow::CMainWindow()
