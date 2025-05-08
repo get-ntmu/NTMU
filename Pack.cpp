@@ -3,6 +3,9 @@
 
 CPack::PackOption *CPack::_FindOption(LPCWSTR pszID)
 {
+	if (!pszID)
+		return nullptr;
+
 	for (PackOption &opt : _options)
 	{
 		if (0 == _wcsicmp(pszID, opt.id.c_str()))
@@ -254,26 +257,5 @@ bool CPack::Load(LPCWSTR pszPath)
 		MainWndMsgBox(L"No Pack section found", MB_ICONERROR);
 	}
 
-	return true;
-}
-
-UINT CPack::GetOptionValue(LPCWSTR pszName)
-{
-	PackOption *pOpt = _FindOption(pszName);
-	if (!pOpt)
-		return (UINT)-1;
-	return pOpt->uValue;
-}
-
-bool CPack::SetOptionValue(LPCWSTR pszName, UINT uValue)
-{
-	PackOption *pOpt = _FindOption(pszName);
-	if (!pOpt)
-		return false;
-
-	if (!_ValidateOptionValue(*pOpt, uValue))
-		return false;
-
-	pOpt->uValue = uValue;
 	return true;
 }

@@ -66,9 +66,6 @@ public:
 	bool Load(LPCWSTR pszPath);
 	bool Apply();
 
-	UINT GetOptionValue(LPCWSTR pszName);
-	bool SetOptionValue(LPCWSTR pszName, UINT uValue);
-
 	std::wstring GetName()
 	{
 		return _name;

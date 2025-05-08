@@ -33,7 +33,8 @@ private:
 
 	enum OPTIONSIMAGEINDEX
 	{
-		OII_CHECK = 0,
+		OII_CPL = 0,
+		OII_CHECK,
 		OII_CHECK_ON,
 		OII_RADIO,
 		OII_RADIO_ON,

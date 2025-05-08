@@ -150,6 +150,78 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_SIZE:
 			_UpdateLayout();
 			return 0;
+		case WM_NOTIFY:
+			switch (((LPNMHDR)lParam)->code)
+			{
+				// Prevent user from collapsing radio options
+				case TVN_ITEMEXPANDINGW:
+				{
+					LPNMTREEVIEWW lpnm = (LPNMTREEVIEWW)lParam;
+					if (lpnm->itemNew.state & TVIS_EXPANDED)
+					{
+						return TRUE;
+					}
+					break;
+				}
+				case TVN_SELCHANGED:
+				{
+					LPNMTREEVIEWW lpnm = (LPNMTREEVIEWW)lParam;
+					HTREEITEM hItem = lpnm->itemNew.hItem;
+					HTREEITEM hItemParent = TreeView_GetParent(_hwndOptions, hItem);
+					// Radio items
+					if (hItemParent)
+					{
+						// Get parent param (option pointer)
+						TVITEMW tvi = { 0 };
+						tvi.mask = TVIF_HANDLE | TVIF_PARAM;
+						tvi.hItem = hItemParent;
+						TreeView_GetItem(_hwndOptions, &tvi);
+
+						CPack::PackOption *pOpt = (CPack::PackOption *)tvi.lParam;
+						pOpt->uValue = lpnm->itemNew.lParam;
+
+						// Deselect current item
+						HTREEITEM hItemChild = TreeView_GetChild(_hwndOptions, hItemParent);
+						do
+						{
+							tvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+							tvi.hItem = hItemChild;
+							TreeView_GetItem(_hwndOptions, &tvi);
+							if (tvi.iImage == OII_RADIO_ON)
+							{
+								tvi.iImage = OII_RADIO;
+								tvi.iSelectedImage = OII_RADIO;
+								TreeView_SetItem(_hwndOptions, &tvi);
+								break;
+							}
+						}
+						while (hItemChild = TreeView_GetNextSibling(_hwndOptions, hItemChild));
+
+						// Select current item
+						tvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+						tvi.hItem = hItem;
+						tvi.iImage = OII_RADIO_ON;
+						tvi.iSelectedImage = OII_RADIO_ON;
+						TreeView_SetItem(_hwndOptions, &tvi);
+						break;
+					}
+
+					CPack::PackOption *pOpt = (CPack::PackOption *)lpnm->itemNew.lParam;
+					if (pOpt->radios.size() <= 0)
+					{
+						UINT uNewVal = (pOpt->uValue == 0);
+						pOpt->uValue = uNewVal;
+						TVITEMW tvi = { 0 };
+						tvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+						tvi.hItem = hItem;
+						tvi.iImage = uNewVal ? OII_CHECK_ON : OII_CHECK;
+						tvi.iSelectedImage = tvi.iImage;
+						TreeView_SetItem(_hwndOptions, &tvi);
+					}
+					break;
+				}
+			}
+			goto DWP;
 		default:
 DWP:
 			return DefWindowProcW(hWnd, uMsg, wParam, lParam);
@@ -315,12 +387,21 @@ void CMainWindow::_UpdateFonts()
 	int size = MulDiv(16, _dpi, 96);
 	_himlOptions = ImageList_Create(size, size, ILC_COLOR32 | ILC_MASK, OII_COUNT, 1);
 
-	static const int s_rgParts[OII_COUNT]
+	HICON hiconCPL = (HICON)LoadImageW(
+		GetModuleHandleW(L"shell32.dll"),
+		MAKEINTRESOURCEW(137),
+		IMAGE_ICON,
+		size, size,
+		LR_DEFAULTCOLOR
+	);
+	ImageList_AddIcon(_himlOptions, hiconCPL);
+
+	static const int s_rgParts[OII_COUNT - 1]
 		= { BP_CHECKBOX, BP_CHECKBOX, BP_RADIOBUTTON, BP_RADIOBUTTON };
-	static const int s_rgStates[OII_COUNT]
+	static const int s_rgStates[OII_COUNT - 1]
 		= { CBS_UNCHECKEDNORMAL, CBS_CHECKEDNORMAL, RBS_UNCHECKEDNORMAL, RBS_CHECKEDNORMAL };
 
-	static const int s_rgClassicStates[OII_COUNT]
+	static const int s_rgClassicStates[OII_COUNT - 1]
 		= { DFCS_BUTTONCHECK, DFCS_BUTTONCHECK | DFCS_CHECKED, DFCS_BUTTONRADIO, DFCS_BUTTONRADIO | DFCS_CHECKED };
 
 	hdc = CreateCompatibleDC(NULL);
@@ -338,14 +419,14 @@ void CMainWindow::_UpdateFonts()
 		{
 			HTHEME hTheme = OpenThemeData(NULL, L"Button");
 			RECT rc = { 0, 0, size, size };
-			for (int i = 0; i < OII_COUNT; i++)
+			for (int i = OII_CHECK; i < OII_COUNT; i++)
 			{
 				HBITMAP hOld = (HBITMAP)SelectObject(hdc, hbmp);
 				if (hTheme)
 				{
 					DTBGOPTS dtbg = { sizeof(dtbg), DTBG_DRAWSOLID };
 					FillRect(hdc, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
-					DrawThemeBackgroundEx(hTheme, hdc, s_rgParts[i], s_rgStates[i], &rc, &dtbg);
+					DrawThemeBackgroundEx(hTheme, hdc, s_rgParts[i - 1], s_rgStates[i - 1], &rc, &dtbg);
 				}
 				else
 				{
@@ -364,7 +445,7 @@ void CMainWindow::_UpdateFonts()
 						pos + cSize
 					};
 
-					DrawFrameControl(hdc, &rcControl, DFC_BUTTON, s_rgClassicStates[i]);
+					DrawFrameControl(hdc, &rcControl, DFC_BUTTON, s_rgClassicStates[i - 1]);
 					DeleteObject(hbr);
 				}
 				SelectObject(hdc, hOld);
@@ -500,16 +581,34 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath)
 		SetWindowTextW(_hwndText, readmeText.c_str());
 	}
 
-	// debug
-	TVINSERTSTRUCTW tvis = { 0 };
-	tvis.item.mask = TVIF_TEXT | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-	tvis.item.pszText = (LPWSTR)L"Test";
-	tvis.item.cchTextMax = sizeof("Test");
-	for (int i = 0; i < OII_COUNT; i++)
+	const auto &options = _pack.GetOptions();
+	for (const auto &opt : options)
 	{
-		tvis.item.iImage = i;
-		tvis.item.iSelectedImage = i;
-		TreeView_InsertItem(_hwndOptions, &tvis);
+		TVINSERTSTRUCTW tvis = { 0 };
+		TVITEMW &tvi = tvis.item;
+		tvi.mask = TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM | TVIF_TEXT;
+		tvi.pszText = (LPWSTR)opt.name.c_str();
+		tvi.cchTextMax = wcslen(tvi.pszText) + 1;
+		if (opt.radios.size() > 0)
+			tvi.iImage = OII_CPL;
+		else
+			tvi.iImage = opt.uValue ? OII_CHECK_ON : OII_CHECK;
+		tvi.iSelectedImage = tvi.iImage;
+		tvi.lParam = (LPARAM)&opt;
+		HTREEITEM hItem = TreeView_InsertItem(_hwndOptions, &tvis);
+		tvis.hParent = hItem;
+		for (const auto &radio : opt.radios)
+		{
+			tvi.pszText = (LPWSTR)radio.name.c_str();
+			tvi.cchTextMax = wcslen(tvi.pszText) + 1;
+			tvi.iImage = (opt.uValue == radio.uValue) ? OII_RADIO_ON : OII_RADIO;
+			tvi.iSelectedImage = tvi.iImage;
+			tvi.lParam = (LPARAM)radio.uValue;
+			TreeView_InsertItem(_hwndOptions, &tvis);
+			// Have to do this after every subitem or else it only expands one.
+			// Great job, MS.
+			TreeView_Expand(_hwndOptions, hItem, TVE_EXPAND);
+		}	
 	}
 }
 
