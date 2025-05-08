@@ -178,6 +178,9 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 						TreeView_GetItem(_hwndOptions, &tvi);
 
 						CPack::PackOption *pOpt = (CPack::PackOption *)tvi.lParam;
+						// Skip if user selects current radio
+						if (pOpt->uValue == lpnm->itemNew.lParam)
+							break;
 						pOpt->uValue = lpnm->itemNew.lParam;
 
 						// Deselect current item
