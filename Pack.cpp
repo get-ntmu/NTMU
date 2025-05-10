@@ -1,5 +1,6 @@
 #include "Pack.h"
 #include <pathcch.h>
+#include <sstream>
 
 CPack::PackOption *CPack::_FindOption(LPCWSTR pszID)
 {
@@ -114,17 +115,6 @@ bool CPack::_ValidateOptionValue(PackOption &opt, UINT uValue)
 	return true;
 }
 
-void CPack::Reset()
-{
-	ZeroMemory(_szPackFolder, sizeof(_szPackFolder));
-	_name.clear();
-	_author.clear();
-	_version.clear();
-	_previewPath.clear();
-	_options.clear();
-	_sections.clear();
-}
-
 inline bool StringToUInt(const std::wstring &s, UINT *i)
 {
 	// Convert to int
@@ -162,6 +152,47 @@ inline bool StringToUInt(const std::wstring &s, UINT *i)
 	}
 	*i = temp;
 	return true;
+}
+
+// static
+bool CPack::ParseOptionString(const std::wstring &s, std::vector<PackOptionDef> &opts)
+{
+	std::wstringstream ss(s);
+	std::wstring opt;
+	opts.clear();
+	while (std::getline(ss, opt, L','))
+	{
+		size_t index = opt.find(L'=');
+		if (index == std::wstring::npos)
+		{
+			std::wstring message = L"Missing '=' in option string '";
+			message += opt;
+			message += L"'";
+			MainWndMsgBox(message.c_str(), MB_ICONERROR);
+			return false;
+		}
+
+		std::wstring name = opt.substr(0, index);
+		std::wstring sval = opt.substr(index + 1);
+		UINT uValue;
+		if (!StringToUInt(sval, &uValue))
+			return false;
+
+		PackOptionDef optdef = { name, uValue };
+		opts.push_back(optdef);
+	}
+	return true;
+}
+
+void CPack::Reset()
+{
+	ZeroMemory(_szPackFolder, sizeof(_szPackFolder));
+	_name.clear();
+	_author.clear();
+	_version.clear();
+	_previewPath.clear();
+	_options.clear();
+	_sections.clear();
 }
 
 bool CPack::Load(LPCWSTR pszPath)
@@ -241,6 +272,28 @@ bool CPack::Load(LPCWSTR pszPath)
 				return false;
 
 			_options.push_back(opt);
+		}
+		else if (IsSection("Registry"))
+		{
+			PackSection psec = { PackSectionType::Registry };
+			std::wstring require = sec.GetPropByName(L"Requires");
+			if (!require.empty() && !ParseOptionString(require, psec.requires))
+				return false;
+
+			for (INIValue &val : sec.values)
+			{
+				const wchar_t *vname = val.name.c_str();
+				if (0 != _wcsicmp(vname, L"Requires"))
+				{
+					// Destination (and as such, value name) doesn't matter for registry items
+					PackItem item;
+					if (!_ValidateAndConstructPath(val.value.c_str(), item.sourceFile))
+						return false;
+					psec.items.push_back(item);
+				}
+			}
+
+			_sections.push_back(psec);
 		}
 		else
 		{

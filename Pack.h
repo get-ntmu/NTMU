@@ -19,6 +19,12 @@ public:
 		std::vector<PackRadioOption> radios;
 	};
 
+	struct PackOptionDef
+	{
+		std::wstring id;
+		UINT uValue;
+	};
+
 private:
 	WCHAR _szPackFolder[MAX_PATH];
 
@@ -34,12 +40,6 @@ private:
 		Resources = 0,
 		Files,
 		Registry
-	};
-
-	struct PackOptionDef
-	{
-		std::wstring id;
-		UINT uValue;
 	};
 
 	struct PackItem
@@ -62,6 +62,8 @@ private:
 	static bool _ValidateOptionValue(PackOption &opt, UINT uValue);
 
 public:
+	static bool ParseOptionString(const std::wstring &s, std::vector<PackOptionDef> &opts);
+
 	void Reset();
 	bool Load(LPCWSTR pszPath);
 	bool Apply();
