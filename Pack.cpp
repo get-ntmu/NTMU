@@ -1,4 +1,7 @@
 #include "Pack.h"
+#include "Logging.h"
+#include "TrustedInstaller.h"
+#include "Util.h"
 #include <pathcch.h>
 #include <sstream>
 
@@ -30,10 +33,20 @@ bool CPack::_ValidateAndConstructPath(LPCWSTR pszPath, std::wstring &out)
 		pos++;
 	}
 
-	if (path.find(':') != std::wstring::npos // Has drive letter
+	if (path.find(L':') != std::wstring::npos // Has drive letter
 	|| path[0] == L'\\') // Root or UNC path
 	{
 		std::wstring message = L"Encountered non-relative path '";
+		message += pszPath;
+		message += L"'";
+		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		return false;
+	}
+
+	if (path.find(L'"') != std::wstring::npos
+	|| path.find(L'\'') != std::wstring::npos)
+	{
+		std::wstring message = L"Encountered path with quotes '";
 		message += pszPath;
 		message += L"'";
 		MainWndMsgBox(message.c_str(), MB_ICONERROR);
@@ -151,6 +164,17 @@ inline bool StringToUInt(const std::wstring &s, UINT *i)
 		return false;
 	}
 	*i = temp;
+	return true;
+}
+
+bool CPack::_OptionDefMatches(const std::vector<PackOptionDef> &defs)
+{
+	for (const auto &def : defs)
+	{
+		const PackOption *pOpt = _FindOption(def.id.c_str());
+		if (!pOpt || pOpt->uValue != def.uValue)
+			return false;
+	}
 	return true;
 }
 
@@ -280,10 +304,19 @@ bool CPack::Load(LPCWSTR pszPath)
 			if (!require.empty() && !ParseOptionString(require, psec.requires))
 				return false;
 
+			std::wstring trustedInstaller = sec.GetPropByName(L"TrustedInstaller");
+			UINT uValue = 0;
+			if (!trustedInstaller.empty() && !StringToUInt(trustedInstaller, &uValue)
+			|| !_ValidateBoolean(uValue))
+				return false;
+
+			if (uValue)
+				psec.flags |= PackSectionFlags::TrustedInstaller;
+
 			for (INIValue &val : sec.values)
 			{
 				const wchar_t *vname = val.name.c_str();
-				if (0 != _wcsicmp(vname, L"Requires"))
+				if (0 != _wcsicmp(vname, L"Requires") && 0 != _wcsicmp(vname, L"TrustedInstaller"))
 				{
 					// Destination (and as such, value name) doesn't matter for registry items
 					PackItem item;
@@ -309,6 +342,64 @@ bool CPack::Load(LPCWSTR pszPath)
 	{
 		MainWndMsgBox(L"No Pack section found", MB_ICONERROR);
 	}
+
+	return true;
+}
+
+bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
+{
+	std::vector<PackSection> secs;
+	for (const auto &sec : _sections)
+	{
+		if (_OptionDefMatches(sec.requires))
+			secs.push_back(sec);
+	}
+
+	size_t totalItems = secs.size();
+	size_t processedItems = 0;
+	for (const auto &sec : secs)
+	{
+		switch (sec.type)
+		{
+			case PackSectionType::Registry:
+			{
+				WCHAR szRegeditPath[MAX_PATH];
+				GetWindowsDirectoryW(szRegeditPath, MAX_PATH);
+				PathCchAppend(szRegeditPath, MAX_PATH, L"regedit.exe");
+
+				auto pfnWaitFunc = (sec.flags & PackSectionFlags::TrustedInstaller) ? WaitForProcessAsTrustedInstaller : WaitForProcess;
+
+				for (const auto &item : sec.items)
+				{
+					Log(L"Applying registry file '%s'...", item.sourceFile.c_str());
+
+					std::wstring command = L"\"";
+					command += szRegeditPath;
+					command += L"\" /s \"";
+					command += item.sourceFile;
+					command += L"\"";
+
+					DWORD dwExitCode;
+					if (!pfnWaitFunc(command.c_str(), &dwExitCode))
+					{
+						Log(L"Failed to create regedit.exe process. Error: %u", GetLastError());
+						return false;
+					}
+					
+					if (dwExitCode != 0)
+					{
+						Log(L"regedit.exe exited with error code %u.", dwExitCode);
+						return false;
+					}
+
+					processedItems++;
+					pfnCallback(lpParam, processedItems, totalItems);
+				}
+			}
+		}
+	}
+
+	Log(L"All done!");
 
 	return true;
 }

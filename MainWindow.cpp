@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "DPIHelpers.h"
+#include "Logging.h"
 #include <locale>
 #include <codecvt>
 #include <pathcch.h>
@@ -56,10 +57,11 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_COMMAND:
 			switch (LOWORD(wParam))
 			{
+				case IDC_APPLY:
+					_ApplyPack();
+					break;
 				case IDM_FILEOPEN:
 				{
-					_UnloadPack();
-
 					WCHAR szFilePath[MAX_PATH] = { 0 };
 					OPENFILENAMEW ofn = { 0 };
 					ofn.lStructSize = sizeof(ofn);
@@ -71,6 +73,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					ofn.Flags = OFN_EXPLORER | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_PATHMUSTEXIST;
 					if (GetOpenFileNameW(&ofn))
 					{
+						_UnloadPack();
 						_LoadPack(szFilePath);
 					}
 					break;
@@ -225,6 +228,10 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 				}
 			}
 			goto DWP;
+		case WM_SYSCOMMAND:
+			if ((wParam & 0xFFF0) == SC_CLOSE && _fApplying)
+				return 0;
+			goto DWP;
 		default:
 DWP:
 			return DefWindowProcW(hWnd, uMsg, wParam, lParam);
@@ -254,9 +261,10 @@ void CMainWindow::_OnCreate()
 
 	_hwndProgress = CreateWindowExW(
 		NULL, PROGRESS_CLASSW, nullptr,
-		WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
+		WS_CHILD | WS_VISIBLE | PBS_SMOOTH | PBS_SMOOTHREVERSE, 0, 0, 0, 0,
 		_hwnd, NULL, NULL, NULL
 	);
+	SendMessageW(_hwndProgress, PBM_SETSTEP, 1, 0);
 
 	WCHAR szApplyText[MAX_PATH] = { 0 };
 	LoadStringW(g_hinst, IDS_APPLY, szApplyText, MAX_PATH);
@@ -632,6 +640,93 @@ void CMainWindow::_UnloadPack()
 		_pPreviewWnd->SetImage(nullptr);
 
 	TreeView_DeleteAllItems(_hwndOptions);
+}
+
+// static
+void CMainWindow::s_ApplyProgressCallback(void *lpParam, DWORD dwItemsProcessed, DWORD dwTotalItems)
+{
+	CMainWindow *pThis = (CMainWindow *)lpParam;
+	PostMessageW(pThis->_hwndProgress, PBM_DELTAPOS, 100 / dwTotalItems, 0);
+}
+
+void CMainWindow::_ApplyPack()
+{
+	int result = MainWndMsgBox(
+		L"Applying a pack can make changes to system files and registry entries. "
+		L"If the pack you have selected does so, it is recommended that you:\n\n"
+		L"- Create a restore point (Tools -> Manage System Restore...)\n"
+		L"- Disable Windows Update (can be done through external tools)\n\n"
+		L"Do you wish to proceed?",
+		MB_ICONWARNING | MB_YESNO
+	);
+	if (result == IDNO)
+		return;
+
+	CreateThread(nullptr, 0, s_ApplyPackThreadProc, this, NULL, nullptr);
+}
+
+// static
+DWORD CALLBACK CMainWindow::s_ApplyPackThreadProc(LPVOID lpParam)
+{
+	((CMainWindow *)lpParam)->_ApplyPackWorker();
+	ExitThread(0);
+	return 0;
+}
+
+// static
+void CMainWindow::s_LogCallback(void *lpParam, LPCWSTR pszText)
+{
+	CMainWindow *pThis = (CMainWindow *)lpParam;
+
+	HWND hwnd = pThis->_hwndText;
+	size_t length = GetWindowTextLengthW(hwnd) + 1;
+	LPWSTR pszBuffer = new WCHAR[length];
+	GetWindowTextW(hwnd, pszBuffer, length);
+	std::wstring newText = pszBuffer;
+	delete[] pszBuffer;
+	newText += pszText;
+	newText += L"\r\n";
+	SetWindowTextW(hwnd, newText.c_str());
+}
+
+void CMainWindow::_ApplyPackWorker()
+{
+	HMENU hmenu = GetMenu(_hwnd);
+	HMENU hmenuSystem = GetSystemMenu(_hwnd, FALSE);
+
+	SetWindowTextW(_hwndText, L"");
+
+	EnableMenuItem(hmenu, IDM_FILEEXIT, MF_BYCOMMAND | MF_GRAYED | MF_DISABLED);
+	EnableMenuItem(hmenuSystem, SC_CLOSE, MF_BYCOMMAND | MF_GRAYED | MF_DISABLED);
+	EnableWindow(_hwndApply, FALSE);
+	EnableWindow(_hwndOptions, FALSE);
+
+	DWORD dwCallbackID;
+	AddLogCallback(s_LogCallback, this, &dwCallbackID);
+
+	_fApplying = true;
+
+	if (_pack.Apply(this, s_ApplyProgressCallback))
+	{
+		MainWndMsgBox(L"The pack was applied successfully.", MB_ICONINFORMATION);
+	}
+	else
+	{
+		SendMessageW(_hwndProgress, PBM_SETSTATE, PBST_ERROR, 0);
+		MainWndMsgBox(L"Failed to apply the selected pack. See the log for more details.", MB_ICONERROR);
+	}
+
+	_fApplying = false;
+
+	RemoveLogCallback(dwCallbackID);
+
+	EnableMenuItem(hmenu, IDM_FILEEXIT, MF_BYCOMMAND | MF_ENABLED);
+	EnableMenuItem(hmenuSystem, SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
+	EnableWindow(_hwndApply, TRUE);
+	EnableWindow(_hwndOptions, TRUE);
+
+	SendMessageW(_hwndProgress, PBM_SETSTATE, PBST_NORMAL, 0);
+	SendMessageW(_hwndProgress, PBM_SETPOS, 0, 0);
 }
 
 CMainWindow::CMainWindow()

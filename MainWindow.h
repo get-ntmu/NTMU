@@ -51,6 +51,7 @@ private:
 	int _cyMsgFontChar;
 
 	CPack _pack;
+	bool _fApplying;
 
 	static INT_PTR CALLBACK s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -72,6 +73,12 @@ private:
 
 	void _LoadPack(LPCWSTR pszPath);
 	void _UnloadPack();
+
+	static void s_ApplyProgressCallback(void *lpParam, DWORD dwItemsProcessed, DWORD dwTotalItems);
+	void _ApplyPack();
+	static DWORD CALLBACK s_ApplyPackThreadProc(LPVOID lpParam);
+	static void s_LogCallback(void *lpParam, LPCWSTR pszText);
+	void _ApplyPackWorker();
 
 public:
 	CMainWindow();

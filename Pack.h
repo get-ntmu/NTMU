@@ -25,6 +25,11 @@ public:
 		UINT uValue;
 	};
 
+	enum class PackSectionFlags
+	{
+		TrustedInstaller = 1 << 0,
+	};
+
 private:
 	WCHAR _szPackFolder[MAX_PATH];
 
@@ -39,7 +44,7 @@ private:
 	{
 		Resources = 0,
 		Files,
-		Registry
+		Registry,
 	};
 
 	struct PackItem
@@ -51,6 +56,7 @@ private:
 	struct PackSection
 	{
 		PackSectionType type;
+		PackSectionFlags flags;
 		std::vector<PackOptionDef> requires;
 		std::vector<PackItem> items;
 	};
@@ -60,13 +66,30 @@ private:
 	PackOption *_FindOption(LPCWSTR pszID);
 	bool _ValidateAndConstructPath(LPCWSTR pszPath, std::wstring &out);
 	static bool _ValidateOptionValue(PackOption &opt, UINT uValue);
+	bool _OptionDefMatches(const std::vector<PackOptionDef> &defs);
+
+	inline static bool _ValidateBoolean(UINT uValue)
+	{
+		if (uValue != 0 && uValue != 1)
+		{
+			std::wstring message = L"Invalid boolean value '";
+			message += std::to_wstring(uValue);
+			message += L"'";
+			MainWndMsgBox(message.c_str(), MB_ICONERROR);
+			return false;
+		}
+		return true;
+	}
 
 public:
 	static bool ParseOptionString(const std::wstring &s, std::vector<PackOptionDef> &opts);
 
 	void Reset();
 	bool Load(LPCWSTR pszPath);
-	bool Apply();
+
+	typedef void (*PackApplyProgressCallback)(void *lpParam, DWORD dwItemsProcessed, DWORD dwTotalItems);
+
+	bool Apply(void *lpParam, PackApplyProgressCallback pfnProgressCalback);
 
 	std::wstring GetName()
 	{
@@ -99,3 +122,17 @@ public:
 	}
 };
 
+inline CPack::PackSectionFlags operator|(CPack::PackSectionFlags a, CPack::PackSectionFlags b)
+{
+	return (CPack::PackSectionFlags)((int)a | (int)b);
+}
+
+inline CPack::PackSectionFlags &operator|=(CPack::PackSectionFlags &a, CPack::PackSectionFlags b)
+{
+	return a = (a | b);
+}
+
+inline bool operator&(CPack::PackSectionFlags a, CPack::PackSectionFlags b)
+{
+	return (bool)((int)a & (int)b);
+}

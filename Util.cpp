@@ -11,3 +11,29 @@ void trim(std::wstring &s)
 		return !std::isspace(ch);
 		}));
 }
+
+bool WaitForProcess(LPCWSTR pszCommandLine, DWORD *lpdwExitCode)
+{
+	if (!lpdwExitCode)
+		return false;
+
+	PROCESS_INFORMATION pi;
+	STARTUPINFOW si = { sizeof(si) };
+	if (!CreateProcessW(
+		nullptr,
+		(LPWSTR)pszCommandLine,
+		nullptr,
+		nullptr,
+		FALSE,
+		NULL,
+		nullptr,
+		nullptr,
+		&si,
+		&pi
+	))
+		return false;
+
+	WaitForSingleObject(pi.hProcess, INFINITE);
+
+	return GetExitCodeProcess(pi.hProcess, lpdwExitCode);
+}
