@@ -1,24 +1,6 @@
 #include "TrustedInstaller.h"
 #include <tlhelp32.h>
 
-bool EnablePrivilege(LPCWSTR lpPrivilegeName)
-{
-	wil::unique_handle hToken;
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES, &hToken))
-		return false;
-
-	LUID luid;
-	if (!LookupPrivilegeValueW(nullptr, lpPrivilegeName, &luid))
-		return false;
-
-	TOKEN_PRIVILEGES tp;
-	tp.PrivilegeCount = 1;
-	tp.Privileges[0].Luid = luid;
-	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-	BOOL fSucceeded = AdjustTokenPrivileges(hToken.get(), FALSE, &tp, sizeof(tp), nullptr, nullptr);
-	return fSucceeded;
-}
-
 bool GetProcessIdByName(LPCWSTR lpProcessName, LPDWORD lpdwPid)
 {
 	*lpdwPid = -1;
@@ -124,9 +106,6 @@ bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATI
 {
 	static DWORD dwTIPid = -1;
 	if (dwTIPid == -1 && !StartTrustedInstallerService(&dwTIPid))
-		return false;
-
-	if (!EnablePrivilege(SE_DEBUG_NAME) || !EnablePrivilege(SE_IMPERSONATE_NAME) || !ImpersonateSystem())
 		return false;
 
 	wil::unique_handle hTIProcess(OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, dwTIPid));

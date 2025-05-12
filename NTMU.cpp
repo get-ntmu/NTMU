@@ -3,6 +3,25 @@
 
 HINSTANCE g_hinst    = NULL;
 HWND      g_hwndMain = NULL;
+WCHAR     g_szTempDir[MAX_PATH] = { 0 };
+
+bool EnablePrivilege(LPCWSTR lpPrivilegeName)
+{
+	wil::unique_handle hToken;
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES, &hToken))
+		return false;
+
+	LUID luid;
+	if (!LookupPrivilegeValueW(nullptr, lpPrivilegeName, &luid))
+		return false;
+
+	TOKEN_PRIVILEGES tp;
+	tp.PrivilegeCount = 1;
+	tp.Privileges[0].Luid = luid;
+	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+	BOOL fSucceeded = AdjustTokenPrivileges(hToken.get(), FALSE, &tp, sizeof(tp), nullptr, nullptr);
+	return fSucceeded;
+}
 
 int WINAPI wWinMain(
 	_In_     HINSTANCE hInstance,
@@ -23,6 +42,26 @@ int WINAPI wWinMain(
 		return -1;
 	}
 #endif
+
+	if (!EnablePrivilege(SE_DEBUG_NAME) || !EnablePrivilege(SE_IMPERSONATE_NAME))
+	{
+		MainWndMsgBox(
+			L"Failed to acquire the necessary privileges.",
+			MB_ICONERROR
+		);
+		return -1;
+	}
+
+	ExpandEnvironmentStringsW(L"%TEMP%\\NTMU\\", g_szTempDir, MAX_PATH);
+	DWORD dwAttr = GetFileAttributesW(g_szTempDir);
+	if (dwAttr == INVALID_FILE_ATTRIBUTES && !CreateDirectoryW(g_szTempDir, nullptr))
+	{
+		MainWndMsgBox(
+			L"Failed to create the temporary directory.",
+			MB_ICONERROR
+		);
+		return -1;
+	}
 
 	g_hinst = hInstance;
 	

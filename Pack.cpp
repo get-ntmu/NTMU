@@ -3,6 +3,7 @@
 #include "TrustedInstaller.h"
 #include "Util.h"
 #include <pathcch.h>
+#include <shlwapi.h>
 #include <sstream>
 
 CPack::PackOption *CPack::_FindOption(LPCWSTR pszID)
@@ -22,7 +23,7 @@ CPack::PackOption *CPack::_FindOption(LPCWSTR pszID)
   * Validates a user-defined source path and constructs into a full path,
   * relative to the pack.
   */
-bool CPack::_ValidateAndConstructPath(LPCWSTR pszPath, std::wstring &out)
+bool CPack::_ConstructPackFilePath(LPCWSTR pszPath, std::wstring &out)
 {
 	std::wstring path = pszPath;
 	// De-Unix the path.
@@ -92,6 +93,35 @@ bool CPack::_ValidateAndConstructPath(LPCWSTR pszPath, std::wstring &out)
 
 	out = szResult;
 
+	return true;
+}
+
+/**
+  * Validates a user-defined path for an external file and expands
+  * environment strings.
+  */
+bool CPack::_ConstructExternalFilePath(LPCWSTR pszPath, std::wstring &out)
+{
+	WCHAR szPath[MAX_PATH];
+	if (!ExpandEnvironmentStringsW(pszPath, szPath, MAX_PATH))
+	{
+		std::wstring message = L"Failed to expand environment strings for path '";
+		message += pszPath;
+		message += L"'";
+		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		return false;
+	}
+
+	if (PathIsRelativeW(szPath))
+	{
+		std::wstring message = L"Relative path '";
+		message += szPath;
+		message += L"' for external file encountered";
+		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		return false;
+	}
+
+	out = szPath;
 	return true;
 }
 
@@ -178,6 +208,58 @@ bool CPack::_OptionDefMatches(const std::vector<PackOptionDef> &defs)
 	return true;
 }
 
+/**
+  * Copies a file and if the original exists, renames it to append .old + the number of
+  * .old files that already exist.
+  * 
+  * For example:
+  * imageres.dll
+  * imageres.dll.old.0
+  * imageres.dll.old.1
+  * imageres.dll.old.2
+  */
+// static
+bool CPack::_CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo)
+{
+	// Handle .old files
+	DWORD dwFileAttrs = GetFileAttributesW(pszTo);
+	if (dwFileAttrs != INVALID_FILE_ATTRIBUTES && !(dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY))
+	{
+		for (int i = 0;; i++)
+		{
+			std::wstring filePath = pszTo;
+			filePath += L".old.";
+			filePath += std::to_wstring(i);
+			
+			dwFileAttrs = GetFileAttributesW(filePath.c_str());
+			if (dwFileAttrs == INVALID_FILE_ATTRIBUTES || (dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY))
+			{
+				Log(L"Moving file '%s' to '%s'...", pszTo, filePath.c_str());
+				if (!MoveFileW(pszTo, filePath.c_str()))
+				{
+					Log(
+						L"Failed to move file '%s' to '%s'. Error: %d",
+						pszTo, filePath.c_str(), GetLastError()
+					);
+					return false;
+				}
+				break;
+			}
+		}
+	}
+
+	Log(L"Copying file '%s' to '%s'...", pszFrom, pszTo);
+	if (!CopyFileW(pszFrom, pszTo, TRUE))
+	{
+		Log(
+			L"Failed to copy file '%s' to '%s'. Error: %d",
+			pszFrom, pszTo, GetLastError()
+		);
+		return false;
+	}
+	return true;
+}
+
 // static
 bool CPack::ParseOptionString(const std::wstring &s, std::vector<PackOptionDef> &opts)
 {
@@ -244,11 +326,11 @@ bool CPack::Load(LPCWSTR pszPath)
 			_version = sec.GetPropByName(L"Version");
 			
 			std::wstring previewPath = sec.GetPropByName(L"Preview");
-			if (!previewPath.empty() && !_ValidateAndConstructPath(previewPath.c_str(), _previewPath))
+			if (!previewPath.empty() && !_ConstructPackFilePath(previewPath.c_str(), _previewPath))
 				return false;
 
 			std::wstring readmePath = sec.GetPropByName(L"Readme");
-			if (!readmePath.empty() && !_ValidateAndConstructPath(readmePath.c_str(), _readmePath))
+			if (!readmePath.empty() && !_ConstructPackFilePath(readmePath.c_str(), _readmePath))
 				return false;
 
 			fPackSectionParsed = true;
@@ -320,7 +402,30 @@ bool CPack::Load(LPCWSTR pszPath)
 				{
 					// Destination (and as such, value name) doesn't matter for registry items
 					PackItem item;
-					if (!_ValidateAndConstructPath(val.value.c_str(), item.sourceFile))
+					if (!_ConstructPackFilePath(val.value.c_str(), item.sourceFile))
+						return false;
+					psec.items.push_back(item);
+				}
+			}
+
+			_sections.push_back(psec);
+		}
+		else if (IsSection("Files"))
+		{
+			PackSection psec = { PackSectionType::Files };
+			std::wstring require = sec.GetPropByName(L"Requires");
+			if (!require.empty() && !ParseOptionString(require, psec.requires))
+				return false;
+
+			for (INIValue &val : sec.values)
+			{
+				const wchar_t *vname = val.name.c_str();
+				if (0 != _wcsicmp(vname, L"Requires"))
+				{
+					PackItem item;
+					if (!_ConstructExternalFilePath(val.name.c_str(), item.destFile))
+						return false;
+					if (!_ConstructPackFilePath(val.value.c_str(), item.sourceFile))
 						return false;
 					psec.items.push_back(item);
 				}
@@ -353,6 +458,12 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 	{
 		if (_OptionDefMatches(sec.requires))
 			secs.push_back(sec);
+	}
+
+	if (!ImpersonateSystem())
+	{
+		Log(L"Failed to impersonate NT AUTHORITY\\SYSTEM");
+		return false;
 	}
 
 	size_t totalItems = secs.size();
@@ -395,9 +506,23 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 					processedItems++;
 					pfnCallback(lpParam, processedItems, totalItems);
 				}
+				break;
+			}
+			case PackSectionType::Files:
+			{
+				for (const auto &item : sec.items)
+				{
+					if (!_CopyFileWithOldStack(item.sourceFile.c_str(), item.destFile.c_str()))
+						return false;
+
+					processedItems++;
+					pfnCallback(lpParam, processedItems, totalItems);
+				}
 			}
 		}
 	}
+
+	RevertToSelf();
 
 	Log(L"All done!");
 

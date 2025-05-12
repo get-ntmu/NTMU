@@ -10,6 +10,7 @@
 
 extern HINSTANCE g_hinst;
 extern HWND      g_hwndMain;
+extern WCHAR     g_szTempDir[MAX_PATH];
 
 #define MainWndMsgBox(text, type) MessageBoxW(g_hwndMain, text, L"Windows NT Modding Utility", type)
 

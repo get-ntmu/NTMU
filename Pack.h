@@ -64,7 +64,8 @@ private:
 	std::vector<PackSection> _sections;
 
 	PackOption *_FindOption(LPCWSTR pszID);
-	bool _ValidateAndConstructPath(LPCWSTR pszPath, std::wstring &out);
+	bool _ConstructPackFilePath(LPCWSTR pszPath, std::wstring &out);
+	bool _ConstructExternalFilePath(LPCWSTR pszPath, std::wstring &out);
 	static bool _ValidateOptionValue(PackOption &opt, UINT uValue);
 	bool _OptionDefMatches(const std::vector<PackOptionDef> &defs);
 
@@ -80,6 +81,8 @@ private:
 		}
 		return true;
 	}
+
+	static bool _CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo);
 
 public:
 	static bool ParseOptionString(const std::wstring &s, std::vector<PackOptionDef> &opts);
