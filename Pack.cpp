@@ -232,7 +232,7 @@ bool CPack::_CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo)
 			std::wstring filePath = pszTo;
 			filePath += L".old.";
 			filePath += std::to_wstring(i);
-			
+
 			dwFileAttrs = GetFileAttributesW(filePath.c_str());
 			if (dwFileAttrs == INVALID_FILE_ATTRIBUTES || (dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY))
 			{
@@ -635,20 +635,41 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 					IEnumResources *pEnum = nullptr;
 					HANDLE hUpdateRes = NULL;
 					bool fSucceeded = false;
-					if (FAILED(CEnumPEResources_CreateInstance(item.sourceFile.c_str(), &pEnum))
-					|| FAILED(CEnumRESResources_CreateInstance(item.sourceFile.c_str(), &pEnum)))
+					HRESULT hr = CEnumRESResources_CreateInstance(item.sourceFile.c_str(), &pEnum);
+					if (FAILED(hr))
+						hr = CEnumPEResources_CreateInstance(item.sourceFile.c_str(), &pEnum);
+					if (FAILED(hr))
 					{
-						Log(L"Failed to enumerate resources of file '%s'", item.sourceFile.c_str());
+						Log(L"Failed to enumerate resources of file '%s'. Error: 0x%X",
+							item.sourceFile.c_str(), hr);
 						goto cleanup;
 					}
 
 					hUpdateRes = BeginUpdateResourceW(szTempFile, FALSE);
+					__debugbreak();
+					if (FAILED(pEnum->Enum([](LPVOID lpParam, LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID pvData, DWORD cbData) -> BOOL
+					{
+						BOOL res = UpdateResourceW(lpParam, lpType, lpName, lcid, pvData, cbData);
+						WCHAR fuckyou[MAX_PATH];
+						swprintf_s(fuckyou, L"%u %u %u %u", res, lpType, lpName, GetLastError());
+						MessageBoxW(NULL, fuckyou, fuckyou, NULL);
+						return TRUE;
+					}, hUpdateRes)))
+					{
+						Log(L"Failed to update resources in file '%s'", szTempFile);
+						goto cleanup;
+					}
 
 					fSucceeded = true;
 cleanup:
-					DeleteFileW(szTempFile);
-					if (pEnum) pEnum->Destroy();
 					if (hUpdateRes) EndUpdateResourceW(hUpdateRes, !fSucceeded);
+					if (pEnum) pEnum->Destroy();
+
+					//if (fSucceeded && !_CopyFileWithOldStack(szTempFile, item.destFile.c_str()))
+					//	fSucceeded = false;
+
+					//DeleteFileW(szTempFile);
+					if (!fSucceeded) return false;
 				}
 				break;
 			}
