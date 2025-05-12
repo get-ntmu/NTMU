@@ -2,6 +2,8 @@
 #include "Logging.h"
 #include "TrustedInstaller.h"
 #include "Util.h"
+#include "EnumPEResources.h"
+#include "EnumRESResources.h"
 #include <pathcch.h>
 #include <shlwapi.h>
 #include <sstream>
@@ -417,8 +419,19 @@ bool CPack::Load(LPCWSTR pszPath)
 			if (!require.empty() && !ParseOptionString(require, psec.requires))
 				return false;
 
+			WCHAR szLocaleName[LOCALE_NAME_MAX_LENGTH];
+			GetUserDefaultLocaleName(szLocaleName, LOCALE_NAME_MAX_LENGTH);
+
 			for (INIValue &val : sec.values)
 			{
+				for (size_t i = 0; i <= val.name.length(); i++)
+				{
+					if (0 == _wcsnicmp(val.name.c_str(), L"<Locale>", sizeof("<Locale>") - 1))
+					{
+						val.name.replace(i, sizeof("<Locale>") - 1, szLocaleName);
+					}
+				}
+
 				const wchar_t *vname = val.name.c_str();
 				if (0 != _wcsicmp(vname, L"Requires"))
 				{
@@ -428,6 +441,91 @@ bool CPack::Load(LPCWSTR pszPath)
 					if (!_ConstructPackFilePath(val.value.c_str(), item.sourceFile))
 						return false;
 					psec.items.push_back(item);
+				}
+			}
+
+			_sections.push_back(psec);
+		}
+		else if (IsSection("Resources"))
+		{
+			PackSection psec = { PackSectionType::Resources };
+			std::wstring require = sec.GetPropByName(L"Requires");
+			if (!require.empty() && !ParseOptionString(require, psec.requires))
+				return false;
+
+			WCHAR szLocaleName[LOCALE_NAME_MAX_LENGTH];
+			GetUserDefaultLocaleName(szLocaleName, LOCALE_NAME_MAX_LENGTH);
+
+			for (INIValue &val : sec.values)
+			{
+				const wchar_t *vname = val.name.c_str();
+				if (0 != _wcsicmp(vname, L"Requires"))
+				{
+					for (size_t i = 0; i <= val.name.length(); i++)
+					{
+						if (0 == _wcsnicmp(val.name.c_str() + i, L"<Locale>", sizeof("<Locale>") - 1))
+						{
+							val.name.replace(i, sizeof("<Locale>") - 1, szLocaleName);
+						}
+					}
+
+					PackItem item;
+					if (!_ConstructPackFilePath(val.value.c_str(), item.sourceFile))
+						return false;
+
+					if (0 == _wcsnicmp(val.name.c_str(), L"<System>\\", sizeof("<System>\\") - 1))
+					{
+						enum PATHINDEX
+						{
+							PI_SYSTEM32 = 0,
+							PI_SYSWOW64,
+							PI_SYSRES,
+							PI_COUNT
+						};
+
+						std::wstring filePath = val.name.substr(sizeof("<System>\\") - 1);
+						WCHAR szPathsToTry[PI_COUNT][MAX_PATH];
+
+						// C:\Windows\System32\XXX
+						GetSystemDirectoryW(szPathsToTry[PI_SYSTEM32], MAX_PATH);
+						PathCchAppend(szPathsToTry[PI_SYSTEM32], MAX_PATH, filePath.c_str());
+
+						// C:\Windows\SysWOW64\XXX
+						GetWindowsDirectoryW(szPathsToTry[PI_SYSWOW64], MAX_PATH);
+						PathCchAppend(szPathsToTry[PI_SYSWOW64], MAX_PATH, L"SysWOW64");
+						PathCchAppend(szPathsToTry[PI_SYSWOW64], MAX_PATH, filePath.c_str());
+
+						// C:\Windows\SystemResources\XXX.mun
+						GetWindowsDirectoryW(szPathsToTry[PI_SYSRES], MAX_PATH);
+						PathCchAppend(szPathsToTry[PI_SYSRES], MAX_PATH, L"SystemResources");
+						PathCchAppend(szPathsToTry[PI_SYSRES], MAX_PATH, filePath.c_str());
+						wcscat_s(szPathsToTry[PI_SYSRES], L".mun");
+
+						DWORD dwFileAttrs = GetFileAttributesW(szPathsToTry[PI_SYSRES]);
+						if (dwFileAttrs != INVALID_FILE_ATTRIBUTES && !(dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY))
+						{
+							item.destFile = szPathsToTry[PI_SYSRES];
+							psec.items.push_back(item);
+							// We don't need to copy resources to System32 or SysWOW64 if we have a MUN.
+							continue;
+						}
+
+						for (int i = PI_SYSTEM32; i <= PI_SYSWOW64; i++)
+						{
+							dwFileAttrs = GetFileAttributesW(szPathsToTry[i]);
+							if (dwFileAttrs != INVALID_FILE_ATTRIBUTES && !(dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY))
+							{
+								item.destFile = szPathsToTry[i];
+								psec.items.push_back(item);
+							}
+						}
+					}
+					else
+					{
+						if (!_ConstructExternalFilePath(val.name.c_str(), item.destFile))
+							return false;
+						psec.items.push_back(item);
+					}
 				}
 			}
 
@@ -518,6 +616,41 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 					processedItems++;
 					pfnCallback(lpParam, processedItems, totalItems);
 				}
+				break;
+			}
+			case PackSectionType::Resources:
+			{
+				for (const auto &item : sec.items)
+				{
+					WCHAR szTempFile[MAX_PATH];
+					wcscpy_s(szTempFile, g_szTempDir);
+					PathCchAppend(szTempFile, MAX_PATH, PathFindFileNameW(item.destFile.c_str()));
+
+					if (!CopyFileW(item.destFile.c_str(), szTempFile, FALSE))
+					{
+						Log(L"Failed to copy file '%s' to '%s'", item.destFile.c_str(), szTempFile);
+						return false;
+					}
+
+					IEnumResources *pEnum = nullptr;
+					HANDLE hUpdateRes = NULL;
+					bool fSucceeded = false;
+					if (FAILED(CEnumPEResources_CreateInstance(item.sourceFile.c_str(), &pEnum))
+					|| FAILED(CEnumRESResources_CreateInstance(item.sourceFile.c_str(), &pEnum)))
+					{
+						Log(L"Failed to enumerate resources of file '%s'", item.sourceFile.c_str());
+						goto cleanup;
+					}
+
+					hUpdateRes = BeginUpdateResourceW(szTempFile, FALSE);
+
+					fSucceeded = true;
+cleanup:
+					DeleteFileW(szTempFile);
+					if (pEnum) pEnum->Destroy();
+					if (hUpdateRes) EndUpdateResourceW(hUpdateRes, !fSucceeded);
+				}
+				break;
 			}
 		}
 	}

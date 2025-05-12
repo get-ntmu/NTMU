@@ -1,10 +1,10 @@
 #pragma once
 #include "NTMU.h"
 
-typedef BOOL (CALLBACK *ENUMRESPROC)(LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID pvData, DWORD cbData);
+typedef BOOL (CALLBACK *ENUMRESPROC)(LPVOID lpParam, LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID pvData, DWORD cbData);
 
 interface IEnumResources
 {
-	STDMETHOD(Enum)(ENUMRESPROC lpEnumFunc) PURE;
+	STDMETHOD(Enum)(ENUMRESPROC lpEnumFunc, LPVOID lpParam) PURE;
 	STDMETHOD_(void, Destroy)() PURE;
 };

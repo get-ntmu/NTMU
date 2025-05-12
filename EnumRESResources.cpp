@@ -29,7 +29,7 @@ void CEnumRESResources::_ReadDwordAlignment()
 		_cbCursor += 4 - dwMod;
 }
 
-STDMETHODIMP CEnumRESResources::Enum(ENUMRESPROC lpEnumFunc)
+STDMETHODIMP CEnumRESResources::Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam)
 {
 	while (true)
 	{
@@ -59,7 +59,7 @@ STDMETHODIMP CEnumRESResources::Enum(ENUMRESPROC lpEnumFunc)
 
 		LPVOID lpData = _pbData + _cbCursor;
 		_cbCursor;
-		if (!lpEnumFunc(lpType, lpName, wLangID, lpData, cbData))
+		if (!lpEnumFunc(lpParam, lpType, lpName, wLangID, lpData, cbData))
 			break;
 
 		_cbCursor += cbData;

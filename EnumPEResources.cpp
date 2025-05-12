@@ -1,7 +1,12 @@
 #include "EnumPEResources.h"
 
-STDMETHODIMP CEnumPEResources::Enum(ENUMRESPROC lpEnumFunc)
+STDMETHODIMP CEnumPEResources::Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam)
 {
+	struct ENUMPERESPARAMS
+	{
+		ENUMRESPROC lpEnumFunc;
+		LPVOID lpParam;
+	} params = { lpEnumFunc, lpParam };
 	EnumResourceTypesExW(
 		_hMod, [](HMODULE hMod, LPWSTR lpType, LONG_PTR lParam) -> BOOL
 		{
@@ -24,14 +29,15 @@ STDMETHODIMP CEnumPEResources::Enum(ENUMRESPROC lpEnumFunc)
 							if (!lpData)
 								return FALSE;
 
-							return ((ENUMRESPROC)lParam)(lpType, lpName, wIDLanguage, lpData, cbSize);
+							ENUMPERESPARAMS *pParams = (ENUMPERESPARAMS *)lParam;
+							return pParams->lpEnumFunc(pParams->lpParam, lpType, lpName, wIDLanguage, lpData, cbSize);
 						},
 						lParam, RESOURCE_ENUM_LN, 0
 					);
 				},
 				lParam, RESOURCE_ENUM_LN, 0
 			);
-		}, (LONG_PTR)lpEnumFunc, RESOURCE_ENUM_LN, 0
+		}, (LONG_PTR)&params, RESOURCE_ENUM_LN, 0
 	);
 	return HRESULT_FROM_WIN32(GetLastError());
 }
