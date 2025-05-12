@@ -154,80 +154,109 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 			_UpdateLayout();
 			return 0;
 		case WM_NOTIFY:
-			switch (((LPNMHDR)lParam)->code)
+		{
+			UINT uCode = ((LPNMHDR)lParam)->code;
+			switch (uCode)
 			{
 				// Prevent user from collapsing radio options
 				case TVN_ITEMEXPANDINGW:
 				{
 					LPNMTREEVIEWW lpnm = (LPNMTREEVIEWW)lParam;
 					if (lpnm->itemNew.state & TVIS_EXPANDED)
-					{
 						return TRUE;
-					}
 					break;
 				}
-				case TVN_SELCHANGED:
+				case TVN_KEYDOWN:
+					if (((LPNMTVKEYDOWN)lParam)->wVKey != VK_SPACE)
+						break;
+				// fall-thru
+				case NM_CLICK:
 				{
-					LPNMTREEVIEWW lpnm = (LPNMTREEVIEWW)lParam;
-					HTREEITEM hItem = lpnm->itemNew.hItem;
+					HTREEITEM hItem;
+					LPARAM lParam2;
+					if (uCode == NM_CLICK)
+					{
+						POINT pt;
+						GetCursorPos(&pt);
+						ScreenToClient(_hwndOptions, &pt);
+
+						TVHITTESTINFO ht = { 0 };
+						ht.pt = pt;
+						hItem = TreeView_HitTest(_hwndOptions, &ht);
+					}
+					else
+					{
+						hItem = TreeView_GetSelection(_hwndOptions);
+					}
+
+					TVITEMW tvi = { 0 };
+					tvi.mask = TVIF_HANDLE | TVIF_PARAM;
+					tvi.hItem = hItem;
+					TreeView_GetItem(_hwndOptions, &tvi);
+					lParam2 = tvi.lParam;
+
 					HTREEITEM hItemParent = TreeView_GetParent(_hwndOptions, hItem);
 					// Radio items
 					if (hItemParent)
 					{
 						// Get parent param (option pointer)
-						TVITEMW tvi = { 0 };
-						tvi.mask = TVIF_HANDLE | TVIF_PARAM;
-						tvi.hItem = hItemParent;
-						TreeView_GetItem(_hwndOptions, &tvi);
+						TVITEMW ptvi = { 0 };
+						ptvi.mask = TVIF_HANDLE | TVIF_PARAM;
+						ptvi.hItem = hItemParent;
+						TreeView_GetItem(_hwndOptions, &ptvi);
 
-						CPack::PackOption *pOpt = (CPack::PackOption *)tvi.lParam;
+						CPack::PackOption *pOpt = (CPack::PackOption *)ptvi.lParam;
 						// Skip if user selects current radio
-						if (pOpt->uValue == lpnm->itemNew.lParam)
+						if (pOpt->uValue == lParam2)
 							break;
-						pOpt->uValue = lpnm->itemNew.lParam;
+						pOpt->uValue = lParam2;
 
 						// Deselect current item
 						HTREEITEM hItemChild = TreeView_GetChild(_hwndOptions, hItemParent);
 						do
 						{
-							tvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-							tvi.hItem = hItemChild;
-							TreeView_GetItem(_hwndOptions, &tvi);
-							if (tvi.iImage == OII_RADIO_ON)
+							ptvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+							ptvi.hItem = hItemChild;
+							TreeView_GetItem(_hwndOptions, &ptvi);
+							if (ptvi.iImage == OII_RADIO_ON)
 							{
-								tvi.iImage = OII_RADIO;
-								tvi.iSelectedImage = OII_RADIO;
-								TreeView_SetItem(_hwndOptions, &tvi);
+								ptvi.iImage = OII_RADIO;
+								ptvi.iSelectedImage = OII_RADIO;
+								TreeView_SetItem(_hwndOptions, &ptvi);
 								break;
 							}
 						}
 						while (hItemChild = TreeView_GetNextSibling(_hwndOptions, hItemChild));
 
 						// Select current item
-						tvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-						tvi.hItem = hItem;
-						tvi.iImage = OII_RADIO_ON;
-						tvi.iSelectedImage = OII_RADIO_ON;
-						TreeView_SetItem(_hwndOptions, &tvi);
-						break;
+						ptvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+						ptvi.hItem = hItem;
+						ptvi.iImage = OII_RADIO_ON;
+						ptvi.iSelectedImage = OII_RADIO_ON;
+						TreeView_SetItem(_hwndOptions, &ptvi);
 					}
-
-					CPack::PackOption *pOpt = (CPack::PackOption *)lpnm->itemNew.lParam;
-					if (pOpt->radios.size() <= 0)
+					else
 					{
-						UINT uNewVal = (pOpt->uValue == 0);
-						pOpt->uValue = uNewVal;
-						TVITEMW tvi = { 0 };
-						tvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-						tvi.hItem = hItem;
-						tvi.iImage = uNewVal ? OII_CHECK_ON : OII_CHECK;
-						tvi.iSelectedImage = tvi.iImage;
-						TreeView_SetItem(_hwndOptions, &tvi);
+						CPack::PackOption *pOpt = (CPack::PackOption *)lParam2;
+						if (pOpt->radios.size() <= 0)
+						{
+							UINT uNewVal = (pOpt->uValue == 0);
+							pOpt->uValue = uNewVal;
+							TVITEMW ntvi = { 0 };
+							ntvi.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+							ntvi.hItem = hItem;
+							ntvi.iImage = uNewVal ? OII_CHECK_ON : OII_CHECK;
+							ntvi.iSelectedImage = ntvi.iImage;
+							TreeView_SetItem(_hwndOptions, &ntvi);
+						}
+						else break;
 					}
-					break;
+				
+					return (uCode == TVN_KEYDOWN) ? TRUE : 0;
 				}
 			}
 			goto DWP;
+		}
 		case WM_SYSCOMMAND:
 			if ((wParam & 0xFFF0) == SC_CLOSE && _fApplying)
 				return 0;
