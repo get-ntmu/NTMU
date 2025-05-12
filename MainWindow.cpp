@@ -173,7 +173,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case NM_CLICK:
 				{
 					HTREEITEM hItem;
-					LPARAM lParam2;
+					LPARAM lItemParam;
 					if (uCode == NM_CLICK)
 					{
 						POINT pt;
@@ -193,7 +193,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					tvi.mask = TVIF_HANDLE | TVIF_PARAM;
 					tvi.hItem = hItem;
 					TreeView_GetItem(_hwndOptions, &tvi);
-					lParam2 = tvi.lParam;
+					lItemParam = tvi.lParam;
 
 					HTREEITEM hItemParent = TreeView_GetParent(_hwndOptions, hItem);
 					// Radio items
@@ -207,9 +207,9 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 						CPack::PackOption *pOpt = (CPack::PackOption *)ptvi.lParam;
 						// Skip if user selects current radio
-						if (pOpt->uValue == lParam2)
+						if (pOpt->uValue == lItemParam)
 							break;
-						pOpt->uValue = lParam2;
+						pOpt->uValue = lItemParam;
 
 						// Deselect current item
 						HTREEITEM hItemChild = TreeView_GetChild(_hwndOptions, hItemParent);
@@ -237,7 +237,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					}
 					else
 					{
-						CPack::PackOption *pOpt = (CPack::PackOption *)lParam2;
+						CPack::PackOption *pOpt = (CPack::PackOption *)lItemParam;
 						if (pOpt->radios.size() <= 0)
 						{
 							UINT uNewVal = (pOpt->uValue == 0);
