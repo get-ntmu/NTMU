@@ -102,8 +102,13 @@ bool StartTrustedInstallerService(LPDWORD lpdwPid)
 	return false;
 }
 
-bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATION ppi)
+bool ObtainTrustedInstallerToken(LPHANDLE phToken)
 {
+	if (!phToken || !ImpersonateSystem())
+		return false;
+
+	auto stopImpersonating = wil::scope_exit([&]() noexcept { RevertToSelf(); });
+
 	static DWORD dwTIPid = -1;
 	if (dwTIPid == -1 && !StartTrustedInstallerService(&dwTIPid))
 		return false;
@@ -120,7 +125,6 @@ bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATI
 	))
 		return false;
 
-	wil::unique_handle hDupToken;
 	SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES) };
 	if (!DuplicateTokenEx(
 		hTIToken.get(),
@@ -128,15 +132,37 @@ bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATI
 		&sa,
 		SecurityImpersonation,
 		TokenImpersonation,
-		&hDupToken
+		phToken
 	))
+		return false;
+
+	return true;
+}
+
+bool ImpersonateTrustedInstaller(void)
+{
+	wil::unique_handle hTIToken;
+	if (!ObtainTrustedInstallerToken(&hTIToken))
+		return false;
+
+	return ImpersonateLoggedOnUser(hTIToken.get());
+}
+
+bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATION ppi)
+{
+	static DWORD dwTIPid = -1;
+	if (dwTIPid == -1 && !StartTrustedInstallerService(&dwTIPid))
+		return false;
+
+	wil::unique_handle hTIToken;
+	if (!ObtainTrustedInstallerToken(&hTIToken))
 		return false;
 
 	STARTUPINFOW si = { 0 };
 	si.lpDesktop = (LPWSTR)L"Winsta0\\Default";
 	ZeroMemory(ppi, sizeof(PROCESS_INFORMATION));
 	if (!CreateProcessWithTokenW(
-		hDupToken.get(),
+		hTIToken.get(),
 		LOGON_WITH_PROFILE,
 		nullptr,
 		(LPWSTR)pszCommandLine,

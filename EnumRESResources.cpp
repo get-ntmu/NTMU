@@ -64,6 +64,8 @@ STDMETHODIMP CEnumRESResources::Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam)
 
 		_cbCursor += cbData;
 		_ReadDwordAlignment();
+		if (_cbCursor >= _cbData)
+			break;
 	}
 
 	return S_OK;
