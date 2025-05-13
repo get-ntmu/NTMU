@@ -649,6 +649,13 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 					hUpdateRes = BeginUpdateResourceW(szTempFile, FALSE);
 					if (!hUpdateRes || FAILED(pEnum->Enum([](LPVOID lpParam, LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID pvData, DWORD cbData) -> BOOL
 					{
+						/* Skip any MUI resources. See below. */
+						if (!IS_INTRESOURCE(lpType) && 0 == wcscmp(lpType, L"MUI"))
+						{
+							Log(L"WARNING: Skipping resource of type MUI");
+							return TRUE;
+						}
+
 						/**
 						  * Windows is extremely restrictive with what the built-in resource API
 						  * can do with files that have a resource of type "MUI". Taking into consideration
