@@ -558,6 +558,7 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 			secs.push_back(sec);
 	}
 
+	Log(L"Impersonating TrustedInstaller...");
 	if (!ImpersonateTrustedInstaller())
 	{
 		Log(L"Failed to impersonate TrustedInstaller");
@@ -633,32 +634,60 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 					}
 
 					IEnumResources *pEnum = nullptr;
-					//HANDLE hUpdateRes = NULL;
+					HANDLE hUpdateRes = NULL;
 					bool fSucceeded = false;
 					HRESULT hr = CEnumRESResources_CreateInstance(item.sourceFile.c_str(), &pEnum);
 					if (FAILED(hr))
 						hr = CEnumPEResources_CreateInstance(item.sourceFile.c_str(), &pEnum);
 					if (FAILED(hr))
 					{
-						Log(L"Failed to enumerate resources of file '%s'. Error: 0x%X",
+						Log(L"Failed to parse '%s' as a compiled resource file or portable executable. Error: 0x%X",
 							item.sourceFile.c_str(), hr);
 						goto cleanup;
 					}
 
-					//hUpdateRes = BeginUpdateResourceW(szTempFile, FALSE);
-					//__debugbreak();
-					if (FAILED(pEnum->Enum([](LPVOID lpParam, LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID pvData, DWORD cbData) -> BOOL
+					hUpdateRes = BeginUpdateResourceW(szTempFile, FALSE);
+					if (!hUpdateRes || FAILED(pEnum->Enum([](LPVOID lpParam, LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID pvData, DWORD cbData) -> BOOL
 					{
-						return TRUE;
-					}, nullptr)))
+						/**
+						  * Windows is extremely restrictive with what the built-in resource API
+						  * can do with files that have a resource of type "MUI". Taking into consideration
+						  * the following:
+						  * 
+						  *  - Resource modification is complicated
+						  *  - Pack authors will probably not need to modify this resource itself
+						  * 
+						  * We can safely perform the following hack. We obtain the update data structure
+						  * and change any resources of types from "MUI" to "ZUI", and then change them back
+						  * after. This allows the built-in resource APIs to proceed.
+						  */
+						std::vector<LPWSTR> muis;
+						PUPDATEDATA pUpdate = (PUPDATEDATA)GlobalLock(lpParam);
+						for (PRESTYPE pResType = pUpdate->ResTypeHeadName; pResType; pResType = pResType->pnext)
+						{
+							if (0 == wcscmp(L"MUI", pResType->Type->uu.ss.sz))
+							{
+								pResType->Type->uu.ss.sz[0] = L'Z';
+								muis.push_back(pResType->Type->uu.ss.sz);
+							}
+						}
+						GlobalUnlock(lpParam);
+						BOOL fResult = UpdateResourceW(lpParam, lpType, lpName, lcid, pvData, cbData);
+						for (LPWSTR pszType : muis)
+						{
+							pszType[0] = L'M';
+						}
+						return fResult;
+					}, hUpdateRes)))
 					{
-						Log(L"Failed to enum resources in file '%s'", item.sourceFile.c_str());
+						Log(L"Failed to enumerate resources in file '%s' or apply them to '%s'",
+							item.sourceFile.c_str(), szTempFile);
 						goto cleanup;
 					}
 
 					fSucceeded = true;
 cleanup:
-					//if (hUpdateRes) EndUpdateResourceW(hUpdateRes, !fSucceeded);
+					if (hUpdateRes) EndUpdateResourceW(hUpdateRes, !fSucceeded);
 					if (pEnum) pEnum->Destroy();
 
 					if (fSucceeded && !_CopyFileWithOldStack(szTempFile, item.destFile.c_str()))
