@@ -9,6 +9,7 @@ The Windows NT Modding Utility is a modding tool for windows, similar to the 7ev
 - Copying/replacing files
 - Importing registry entries
 - Doesn't mess with permissions, performs operations as TrustedInstaller
+- Author-defined pack options that the user can change before applying the pack
 
 ## Get packs
 You can get packs at the [dedicated site](https://aubymori.github.io/NTMU/#!/packs).
