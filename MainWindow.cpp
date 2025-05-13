@@ -5,6 +5,10 @@
 #include <codecvt>
 #include <pathcch.h>
 
+const WCHAR c_szGitHubURL[] = L"https://github.com/aubymori/NTMU";
+const WCHAR c_szHelpURL[] = L"https://github.com/aubymori/NTMU/wiki";
+const WCHAR c_szGetPacksURL[] = L"https://aubymori.github.io/NTMU/#!/packs";
+
 INT_PTR CALLBACK CMainWindow::s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
@@ -126,6 +130,17 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					ShellExecuteW(
 						NULL, L"open",
 						szExePath, nullptr,
+						nullptr, SW_SHOWNORMAL
+					);
+					break;
+				}
+				case IDM_HELPTOPICS:
+				case IDM_HELPGETPACKS:
+				{
+					LPCWSTR pszURL = (LOWORD(wParam) == IDM_HELPTOPICS) ? c_szHelpURL : c_szGetPacksURL;
+					ShellExecuteW(
+						NULL, L"open",
+						pszURL, nullptr,
 						nullptr, SW_SHOWNORMAL
 					);
 					break;

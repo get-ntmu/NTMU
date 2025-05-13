@@ -15,7 +15,8 @@
 #define IDM_TOOLSCLEARICOCACHE 205
 #define IDM_TOOLSSYSRESTORE    206
 #define IDM_HELPTOPICS         207
-#define IDM_HELPABOUT          208
+#define IDM_HELPGETPACKS       208
+#define IDM_HELPABOUT          209
 
 #define IDA_MAIN               300
 
