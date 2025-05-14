@@ -67,7 +67,7 @@ HRESULT CEnumPEResources::Initialize(LPCWSTR lpFileName)
 	return S_OK;
 }
 
-HRESULT CEnumPEResources_CreateInstance(LPCWSTR lpFileName, IEnumResources **ppObj)
+HRESULT CEnumPEResources_CreateInstance(LPCWSTR lpFileName, NTMU_IEnumResources **ppObj)
 {
 	if (!lpFileName || !ppObj)
 		return E_INVALIDARG;

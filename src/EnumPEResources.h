@@ -6,7 +6,7 @@
   * Enumerates resources in a PE file using the built-in Windows API.
   * This is used to extract from DLL/EXE/MUI/etc. files.
   */
-class CEnumPEResources : public IEnumResources
+class CEnumPEResources : public NTMU_IEnumResources
 {
 private:
 	HMODULE _hMod;
@@ -23,4 +23,4 @@ public:
 	HRESULT Initialize(LPCWSTR lpFileName);
 };
 
-HRESULT CEnumPEResources_CreateInstance(LPCWSTR lpFileName, IEnumResources **ppObj);
+HRESULT CEnumPEResources_CreateInstance(LPCWSTR lpFileName, NTMU_IEnumResources **ppObj);

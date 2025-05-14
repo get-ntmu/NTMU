@@ -6,6 +6,7 @@
 #include "EnumRESResources.h"
 #include <pathcch.h>
 #include <shlwapi.h>
+#include <shlobj.h>
 #include <sstream>
 
 CPack::PackOption *CPack::_FindOption(LPCWSTR pszID)
@@ -246,6 +247,27 @@ bool CPack::_CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo)
 					return false;
 				}
 				break;
+			}
+		}
+	}
+	else
+	{
+		WCHAR szParentDirName[MAX_PATH];
+		wcscpy_s(szParentDirName, pszTo);
+		WCHAR *pBackslash = wcsrchr(szParentDirName, L'\\');
+		if (!pBackslash)
+		{
+			Log(L"Failed to find backslash in path '%s'", szParentDirName);
+		}
+		*(pBackslash + 1) = L'\0';
+		dwFileAttrs = GetFileAttributesW(szParentDirName);
+		if (dwFileAttrs == INVALID_FILE_ATTRIBUTES || !(dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY))
+		{
+			int result = SHCreateDirectoryExW(NULL, szParentDirName, nullptr);
+			if (result != ERROR_SUCCESS)
+			{
+				Log(L"Failed to create directory '%s'. Error: %d", szParentDirName, result);
+				return false;
 			}
 		}
 	}
@@ -633,7 +655,7 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 						return false;
 					}
 
-					IEnumResources *pEnum = nullptr;
+					NTMU_IEnumResources *pEnum = nullptr;
 					HANDLE hUpdateRes = NULL;
 					bool fSucceeded = false;
 					HRESULT hr = CEnumRESResources_CreateInstance(item.sourceFile.c_str(), &pEnum);

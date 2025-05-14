@@ -2,7 +2,7 @@
 #include "NTMU.h"
 #include "EnumResources.h"
 
-class CEnumRESResources : public IEnumResources
+class CEnumRESResources : public NTMU_IEnumResources
 {
 private:
 	BYTE *_pbData;
@@ -53,4 +53,4 @@ public:
 	HRESULT Initialize(LPCWSTR lpFileName);
 };
 
-HRESULT CEnumRESResources_CreateInstance(LPCWSTR lpFileName, IEnumResources **ppObj);
+HRESULT CEnumRESResources_CreateInstance(LPCWSTR lpFileName, NTMU_IEnumResources **ppObj);
