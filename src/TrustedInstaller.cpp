@@ -61,7 +61,7 @@ bool ImpersonateSystem(void)
 	return true;
 }
 
-bool StartTrustedInstallerService(LPDWORD lpdwPid)
+bool EnsureTrustedInstallerService(LPDWORD lpdwPid)
 {
 	*lpdwPid = -1;
 
@@ -109,8 +109,8 @@ bool ObtainTrustedInstallerToken(LPHANDLE phToken)
 
 	auto stopImpersonating = wil::scope_exit([&]() noexcept { RevertToSelf(); });
 
-	static DWORD dwTIPid = -1;
-	if (dwTIPid == -1 && !StartTrustedInstallerService(&dwTIPid))
+	DWORD dwTIPid;
+	if (!EnsureTrustedInstallerService(&dwTIPid))
 		return false;
 
 	wil::unique_handle hTIProcess(OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, dwTIPid));
@@ -150,10 +150,6 @@ bool ImpersonateTrustedInstaller(void)
 
 bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATION ppi)
 {
-	static DWORD dwTIPid = -1;
-	if (dwTIPid == -1 && !StartTrustedInstallerService(&dwTIPid))
-		return false;
-
 	wil::unique_handle hTIToken;
 	if (!ObtainTrustedInstallerToken(&hTIToken))
 		return false;

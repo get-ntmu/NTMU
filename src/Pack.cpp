@@ -237,6 +237,14 @@ bool CPack::_ParseMinAndMaxBuilds(const INISection &sec, PackSection &psec)
 // static
 bool CPack::_CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo)
 {
+	if (!ImpersonateTrustedInstaller())
+	{
+		Log(L"Failed to impersonate TrustedInstaller");
+		return false;
+	}
+
+	auto stopImpersonating = wil::scope_exit([&]() noexcept { RevertToSelf(); });
+
 	// Handle .old files
 	DWORD dwFileAttrs = GetFileAttributesW(pszTo);
 	if (dwFileAttrs != INVALID_FILE_ATTRIBUTES && !(dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY))
@@ -632,13 +640,6 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 		}
 	}
 
-	Log(L"Impersonating TrustedInstaller...");
-	if (!ImpersonateTrustedInstaller())
-	{
-		Log(L"Failed to impersonate TrustedInstaller");
-		return false;
-	}
-
 	size_t totalItems = secs.size();
 	size_t processedItems = 0;
 	for (const auto &sec : secs)
@@ -781,8 +782,6 @@ cleanup:
 			}
 		}
 	}
-
-	RevertToSelf();
 
 	Log(L"All done!");
 
