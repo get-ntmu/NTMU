@@ -735,7 +735,22 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 							res.wLangId,
 							(LPVOID)res.data.data(), res.data.size()
 						))
+						{
+							const PEResourceType *types[2] = { &res.type, &res.name };
+							WCHAR szTypeStrings[2][256];
+							for (int i = 0; i < 2; i++)
+							{
+								if (types[i]->fIsOrdinal)
+									swprintf_s(szTypeStrings[i], L"%u", types[i]->wOrdinal);
+								else
+									swprintf_s(szTypeStrings[i], L"'%s'", types[i]->string.c_str());
+							}
+							Log(
+								L"Failed to update resource with ID %s, name %s, and language %u in file '%s'",
+								szTypeStrings[0], szTypeStrings[1], res.wLangId, szTempFile
+							);
 							goto cleanup;
+						}
 					}
 					
 					fSucceeded = true;
