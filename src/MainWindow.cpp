@@ -616,28 +616,7 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath)
 	if (_pPreviewWnd)
 		_pPreviewWnd->SetImage(_pack.GetPreviewPath().c_str());
 
-	std::wstring readmePath = _pack.GetReadmePath();
-	if (!readmePath.empty())
-	{
-		std::ifstream readmeFile(readmePath);
-		std::string buffer(
-			(std::istreambuf_iterator<char>(readmeFile)),
-			std::istreambuf_iterator<char>()
-		);
-
-		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-		std::wstring readmeText = converter.from_bytes(buffer);
-
-		// Standardize line endings
-		size_t pos = 0;
-		while ((pos = readmeText.find(L'\n', pos)) != std::wstring::npos)
-		{
-			readmeText.replace(pos, 1, L"\r\n");
-			pos += 2;
-		}
-
-		SetWindowTextW(_hwndText, readmeText.c_str());
-	}
+	_LoadReadme();
 
 	const auto &options = _pack.GetOptions();
 	for (const auto &opt : options)
@@ -687,6 +666,34 @@ void CMainWindow::_UnloadPack()
 		_pPreviewWnd->SetImage(nullptr);
 
 	TreeView_DeleteAllItems(_hwndOptions);
+}
+
+void CMainWindow::_LoadReadme()
+{
+	std::wstring readmePath = _pack.GetReadmePath();
+	if (!readmePath.empty())
+	{
+		std::ifstream readmeFile(readmePath);
+		std::string buffer(
+			(std::istreambuf_iterator<char>(readmeFile)),
+			std::istreambuf_iterator<char>()
+		);
+
+		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+		std::wstring readmeText = converter.from_bytes(buffer);
+
+		// Standardize line endings
+		size_t pos = 0;
+		while ((pos = readmeText.find(L'\n', pos)) != std::wstring::npos)
+		{
+			readmeText.replace(pos, 1, L"\r\n");
+			pos += 2;
+		}
+
+		SetWindowTextW(_hwndText, readmeText.c_str());
+		return;
+	}
+	SetWindowTextW(_hwndText, L"");
 }
 
 // static
@@ -756,6 +763,7 @@ void CMainWindow::_ApplyPackWorker()
 	if (_pack.Apply(this, s_ApplyProgressCallback))
 	{
 		MainWndMsgBox(L"The pack was applied successfully.", MB_ICONINFORMATION);
+		_LoadReadme();
 	}
 	else
 	{

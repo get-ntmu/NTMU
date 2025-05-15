@@ -73,6 +73,7 @@ private:
 
 	void _LoadPack(LPCWSTR pszPath);
 	void _UnloadPack();
+	void _LoadReadme();
 
 	static void s_ApplyProgressCallback(void *lpParam, DWORD dwItemsProcessed, DWORD dwTotalItems);
 	void _ApplyPack();
