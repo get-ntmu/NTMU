@@ -168,6 +168,7 @@
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="NTMU.h" />
     <ClInclude Include="Pack.h" />
+    <ClInclude Include="PEResources.h" />
     <ClInclude Include="PreviewWindow.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="TrustedInstaller.h" />

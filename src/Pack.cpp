@@ -4,6 +4,7 @@
 #include "Util.h"
 #include "EnumPEResources.h"
 #include "EnumRESResources.h"
+#include "PEResources.h"
 #include <pathcch.h>
 #include <shlwapi.h>
 #include <shlobj.h>
@@ -222,6 +223,8 @@ bool CPack::_ParseMinAndMaxBuilds(const INISection &sec, PackSection &psec)
 	psec.uMaxBuild = 0;
 	if (!maxBuild.empty() && !StringToUInt(maxBuild, &psec.uMaxBuild))
 		return false;
+
+	return true;
 }
 
 /**
@@ -708,69 +711,36 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 						return false;
 					}
 
-					NTMU_IEnumResources *pEnum = nullptr;
 					HANDLE hUpdateRes = NULL;
 					bool fSucceeded = false;
-					HRESULT hr = CEnumRESResources_CreateInstance(item.sourceFile.c_str(), &pEnum);
-					if (FAILED(hr))
-						hr = CEnumPEResources_CreateInstance(item.sourceFile.c_str(), &pEnum);
-					if (FAILED(hr))
+					std::vector<PEResource> destResources, sourceResources;
+					if (!LoadResources(szTempFile, false, destResources))
 					{
-						Log(L"Failed to parse '%s' as a compiled resource file or portable executable. Error: 0x%X",
-							item.sourceFile.c_str(), hr);
+						Log(L"Failed to load resources for file '%s'", szTempFile);
 						goto cleanup;
 					}
-
-					hUpdateRes = BeginUpdateResourceW(szTempFile, FALSE);
-					if (!hUpdateRes || FAILED(pEnum->Enum([](LPVOID lpParam, LPCWSTR lpType, LPCWSTR lpName, LANGID lcid, LPVOID pvData, DWORD cbData) -> BOOL
+					if (!LoadResources(item.sourceFile.c_str(), true, sourceResources))
 					{
-						/* Skip any MUI resources. See below. */
-						if (!IS_INTRESOURCE(lpType) && 0 == wcscmp(lpType, L"MUI"))
-						{
-							Log(L"WARNING: Skipping resource of type MUI");
-							return TRUE;
-						}
-
-						/**
-						  * Windows is extremely restrictive with what the built-in resource API
-						  * can do with files that have a resource of type "MUI". Taking into consideration
-						  * the following:
-						  * 
-						  *  - Resource modification is complicated
-						  *  - Pack authors will probably not need to modify this resource itself
-						  * 
-						  * We can safely perform the following hack. We obtain the update data structure
-						  * and change any resources of types from "MUI" to "ZUI", and then change them back
-						  * after. This allows the built-in resource APIs to proceed.
-						  */
-						std::vector<LPWSTR> muis;
-						PUPDATEDATA pUpdate = (PUPDATEDATA)GlobalLock(lpParam);
-						for (PRESTYPE pResType = pUpdate->ResTypeHeadName; pResType; pResType = pResType->pnext)
-						{
-							if (0 == wcscmp(L"MUI", pResType->Type->uu.ss.sz))
-							{
-								pResType->Type->uu.ss.sz[0] = L'Z';
-								muis.push_back(pResType->Type->uu.ss.sz);
-							}
-						}
-						GlobalUnlock(lpParam);
-						BOOL fResult = UpdateResourceW(lpParam, lpType, lpName, lcid, pvData, cbData);
-						for (LPWSTR pszType : muis)
-						{
-							pszType[0] = L'M';
-						}
-						return fResult;
-					}, hUpdateRes)))
-					{
-						Log(L"Failed to enumerate resources in file '%s' or apply them to '%s'",
-							item.sourceFile.c_str(), szTempFile);
+						Log(L"Failed to load resources for file '%s", item.sourceFile.c_str());
 						goto cleanup;
 					}
+					MergeResources(sourceResources, destResources);
 
+					hUpdateRes = BeginUpdateResourceW(szTempFile, TRUE);
+					for (const auto &res : destResources)
+					{
+						if (!UpdateResourceW(
+							hUpdateRes,
+							res.type.AsID(), res.name.AsID(),
+							res.wLangId,
+							(LPVOID)res.data.data(), res.data.size()
+						))
+							goto cleanup;
+					}
+					
 					fSucceeded = true;
 cleanup:
 					if (hUpdateRes) EndUpdateResourceW(hUpdateRes, !fSucceeded);
-					if (pEnum) pEnum->Destroy();
 
 					if (fSucceeded && !_CopyFileWithOldStack(szTempFile, item.destFile.c_str()))
 						fSucceeded = false;
