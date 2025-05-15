@@ -99,4 +99,19 @@ void MergeResources(const std::vector<PEResource> &from, std::vector<PEResource>
 		if (!fReplaced)
 			to.push_back(res);
 	}
+
+	// HACKHACKHACK: MUI resources need to be at the very end of this list or else
+	// they will trigger ERROR_NOT_SUPPORTED due to M$'s crappy limitations with
+	// UpdateResourceW. Just move all the "MUI" resources to the end.
+	for (auto &toRes : to)
+	{
+		if (!toRes.type.fIsOrdinal && 0 == wcscmp(toRes.type.string.c_str(), L"MUI"))
+		{
+			auto it = std::find_if(to.begin(), to.end(), [&](PEResource &item)
+			{
+				return &item == &toRes;
+			});
+			std::rotate(it, it + 1, to.end());
+		}
+	}
 }
