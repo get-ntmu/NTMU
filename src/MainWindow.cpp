@@ -510,6 +510,9 @@ void CMainWindow::_UpdateFonts()
 				ImageList_AddMasked(_himlOptions, hbmp, RGB(255, 0, 255));
 			}
 
+			if (hTheme)
+				CloseThemeData(hTheme);
+
 			DeleteObject(hbmp);
 		}
 
