@@ -211,6 +211,19 @@ bool CPack::_OptionDefMatches(const std::vector<PackOptionDef> &defs)
 	return true;
 }
 
+bool CPack::_ParseMinAndMaxBuilds(const INISection &sec, PackSection &psec)
+{
+	std::wstring minBuild = sec.GetPropByName(L"MinBuild");
+	psec.uMinBuild = 0;
+	if (!minBuild.empty() && !StringToUInt(minBuild, &psec.uMinBuild))
+		return false;
+
+	std::wstring maxBuild = sec.GetPropByName(L"MaxBuild");
+	psec.uMaxBuild = 0;
+	if (!maxBuild.empty() && !StringToUInt(maxBuild, &psec.uMaxBuild))
+		return false;
+}
+
 /**
   * Copies a file and if the original exists, renames it to append .old + the number of
   * .old files that already exist.
@@ -338,6 +351,7 @@ bool CPack::Load(LPCWSTR pszPath)
 	wcsncpy_s(_szPackFolder, pszPath, length);
 
 #define IsSection(name) (0 == _wcsicmp(sname, L ## name))
+#define IsValue(name) (0 == _wcsicmp(vname, L ## name))
 
 	bool fPackSectionParsed = false;
 	for (INISection &sec : ini)
@@ -345,6 +359,38 @@ bool CPack::Load(LPCWSTR pszPath)
 		const wchar_t *sname = sec.name.c_str();
 		if (IsSection("Pack") && !fPackSectionParsed)
 		{
+			std::wstring minBuild = sec.GetPropByName(L"MinBuild");
+			UINT uMinBuild = 0;
+			if (!minBuild.empty() && !StringToUInt(minBuild, &uMinBuild))
+				return false;
+
+			if (uMinBuild && g_dwOSBuild < uMinBuild)
+			{
+				std::wstring message = L"This pack was designed for at minimum Windows build ";
+				message += std::to_wstring(uMinBuild);
+				message += L". You are running build ";
+				message += std::to_wstring(g_dwOSBuild);
+				message += L".";
+				MainWndMsgBox(message.c_str(), MB_ICONERROR);
+				return false;
+			}
+
+			std::wstring maxBuild = sec.GetPropByName(L"MaxBuild");
+			UINT uMaxBuild = 0;
+			if (!maxBuild.empty() && !StringToUInt(maxBuild, &uMaxBuild))
+				return false;
+
+			if (uMaxBuild && g_dwOSBuild > uMaxBuild)
+			{
+				std::wstring message = L"This pack was designed for at most Windows build ";
+				message += std::to_wstring(uMaxBuild);
+				message += L". You are running build ";
+				message += std::to_wstring(g_dwOSBuild);
+				message += L".";
+				MainWndMsgBox(message.c_str(), MB_ICONERROR);
+				return false;
+			}
+
 			_name = sec.GetPropByName(L"Name");
 			_author = sec.GetPropByName(L"Author");
 			_version = sec.GetPropByName(L"Version");
@@ -386,7 +432,7 @@ bool CPack::Load(LPCWSTR pszPath)
 			for (INIValue &val : sec.values)
 			{
 				const wchar_t *vname = val.name.c_str();
-				if (0 != _wcsicmp(vname, L"Name") && 0 != _wcsicmp(vname, L"DefaultValue"))
+				if (!IsValue("Name") && !IsValue("DefaultValue"))
 				{
 					PackRadioOption ropt;
 					if (!StringToUInt(val.name, &ropt.uValue))
@@ -410,6 +456,9 @@ bool CPack::Load(LPCWSTR pszPath)
 			if (!require.empty() && !ParseOptionString(require, psec.requires))
 				return false;
 
+			if (!_ParseMinAndMaxBuilds(sec, psec))
+				return false;
+
 			std::wstring trustedInstaller = sec.GetPropByName(L"TrustedInstaller");
 			UINT uValue = 0;
 			if (!trustedInstaller.empty() && !StringToUInt(trustedInstaller, &uValue)
@@ -422,7 +471,7 @@ bool CPack::Load(LPCWSTR pszPath)
 			for (INIValue &val : sec.values)
 			{
 				const wchar_t *vname = val.name.c_str();
-				if (0 != _wcsicmp(vname, L"Requires") && 0 != _wcsicmp(vname, L"TrustedInstaller"))
+				if (!IsValue("Requires") && !IsValue("TrustedInstaller") && !IsValue("MinBuild") && !IsValue("MaxBuild"))
 				{
 					// Destination (and as such, value name) doesn't matter for registry items
 					PackItem item;
@@ -441,21 +490,13 @@ bool CPack::Load(LPCWSTR pszPath)
 			if (!require.empty() && !ParseOptionString(require, psec.requires))
 				return false;
 
-			WCHAR szLocaleName[LOCALE_NAME_MAX_LENGTH];
-			GetUserDefaultLocaleName(szLocaleName, LOCALE_NAME_MAX_LENGTH);
+			if (!_ParseMinAndMaxBuilds(sec, psec))
+				return false;
 
 			for (INIValue &val : sec.values)
 			{
-				for (size_t i = 0; i <= val.name.length(); i++)
-				{
-					if (0 == _wcsnicmp(val.name.c_str(), L"<Locale>", sizeof("<Locale>") - 1))
-					{
-						val.name.replace(i, sizeof("<Locale>") - 1, szLocaleName);
-					}
-				}
-
 				const wchar_t *vname = val.name.c_str();
-				if (0 != _wcsicmp(vname, L"Requires"))
+				if (!IsValue("Requires") && !IsValue("MinBuild") && !IsValue("MaxBuild"))
 				{
 					PackItem item;
 					if (!_ConstructExternalFilePath(val.name.c_str(), item.destFile))
@@ -475,13 +516,16 @@ bool CPack::Load(LPCWSTR pszPath)
 			if (!require.empty() && !ParseOptionString(require, psec.requires))
 				return false;
 
+			if (!_ParseMinAndMaxBuilds(sec, psec))
+				return false;
+
 			WCHAR szLocaleName[LOCALE_NAME_MAX_LENGTH];
 			GetUserDefaultLocaleName(szLocaleName, LOCALE_NAME_MAX_LENGTH);
 
 			for (INIValue &val : sec.values)
 			{
 				const wchar_t *vname = val.name.c_str();
-				if (0 != _wcsicmp(vname, L"Requires"))
+				if (!IsValue("Requires") && !IsValue("MinBuild") && !IsValue("MaxBuild"))
 				{
 					for (size_t i = 0; i <= val.name.length(); i++)
 					{
@@ -577,7 +621,15 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 	for (const auto &sec : _sections)
 	{
 		if (_OptionDefMatches(sec.requires))
+		{
+			if (sec.uMinBuild && g_dwOSBuild < sec.uMinBuild)
+				continue;
+
+			if (sec.uMaxBuild && g_dwOSBuild > sec.uMaxBuild)
+				continue;
+
 			secs.push_back(sec);
+		}
 	}
 
 	Log(L"Impersonating TrustedInstaller...");

@@ -15,7 +15,7 @@ struct INISection
 	std::wstring name;
 	std::vector<INIValue> values;
 
-	std::wstring GetPropByName(LPCWSTR pszName)
+	std::wstring GetPropByName(LPCWSTR pszName) const
 	{
 		for (const INIValue &val : values)
 		{

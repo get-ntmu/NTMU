@@ -4,6 +4,11 @@
 HINSTANCE g_hinst    = NULL;
 HWND      g_hwndMain = NULL;
 WCHAR     g_szTempDir[MAX_PATH] = { 0 };
+DWORD     g_dwOSBuild = 0;
+
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+
+EXTERN_C NTSYSAPI NTSTATUS RtlGetVersion(PRTL_OSVERSIONINFOW lpVersionInformation);
 
 bool EnablePrivilege(LPCWSTR lpPrivilegeName)
 {
@@ -42,6 +47,18 @@ int WINAPI wWinMain(
 		return -1;
 	}
 #endif
+
+	RTL_OSVERSIONINFOW osvi = { sizeof(osvi) };
+	if (!NT_SUCCESS(RtlGetVersion(&osvi)))
+	{
+		MainWndMsgBox(
+			L"Failed to obtain OS version information.",
+			MB_ICONERROR
+		);
+		return -1;
+	}
+
+	g_dwOSBuild = osvi.dwBuildNumber;
 
 	if (!EnablePrivilege(SE_DEBUG_NAME) || !EnablePrivilege(SE_IMPERSONATE_NAME))
 	{

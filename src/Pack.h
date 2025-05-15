@@ -57,6 +57,8 @@ private:
 	{
 		PackSectionType type;
 		PackSectionFlags flags;
+		UINT uMinBuild;
+		UINT uMaxBuild;
 		std::vector<PackOptionDef> requires;
 		std::vector<PackItem> items;
 	};
@@ -68,6 +70,7 @@ private:
 	bool _ConstructExternalFilePath(LPCWSTR pszPath, std::wstring &out);
 	static bool _ValidateOptionValue(PackOption &opt, UINT uValue);
 	bool _OptionDefMatches(const std::vector<PackOptionDef> &defs);
+	bool _ParseMinAndMaxBuilds(const INISection &sec, PackSection &psec);
 
 	inline static bool _ValidateBoolean(UINT uValue)
 	{
