@@ -7,13 +7,13 @@ STDMETHODIMP CEnumPEResources::Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam)
 		ENUMRESPROC lpEnumFunc;
 		LPVOID lpParam;
 	} params = { lpEnumFunc, lpParam };
-	EnumResourceTypesExW(
+	EnumResourceTypesW(
 		_hMod, [](HMODULE hMod, LPWSTR lpType, LONG_PTR lParam) -> BOOL
 		{
-			return EnumResourceNamesExW(
+			return EnumResourceNamesW(
 				hMod, lpType, [](HMODULE hMod, LPCWSTR lpType, LPWSTR lpName, LONG_PTR lParam) -> BOOL
 				{
-					return EnumResourceLanguagesExW(
+					return EnumResourceLanguagesW(
 						hMod, lpType, lpName, [](HMODULE hMod, LPCWSTR lpType, LPCWSTR lpName, WORD wIDLanguage, LONG_PTR lParam) -> BOOL
 						{
 							HRSRC hrSrc = FindResourceExW(hMod, lpType, lpName, wIDLanguage);
@@ -32,12 +32,12 @@ STDMETHODIMP CEnumPEResources::Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam)
 							ENUMPERESPARAMS *pParams = (ENUMPERESPARAMS *)lParam;
 							return pParams->lpEnumFunc(pParams->lpParam, lpType, lpName, wIDLanguage, lpData, cbSize);
 						},
-						lParam, RESOURCE_ENUM_LN, 0
+						lParam
 					);
 				},
-				lParam, RESOURCE_ENUM_LN, 0
+				lParam
 			);
-		}, (LONG_PTR)&params, RESOURCE_ENUM_LN, 0
+		}, (LONG_PTR)&params
 	);
 	return HRESULT_FROM_WIN32(GetLastError());
 }
@@ -61,7 +61,8 @@ CEnumPEResources::~CEnumPEResources()
 
 HRESULT CEnumPEResources::Initialize(LPCWSTR lpFileName)
 {
-	_hMod = LoadLibraryW(lpFileName);
+	_hMod = LoadLibraryExW(lpFileName,
+		NULL, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE | LOAD_WITH_ALTERED_SEARCH_PATH);
 	if (!_hMod)
 		return HRESULT_FROM_WIN32(GetLastError());
 	return S_OK;
