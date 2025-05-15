@@ -746,8 +746,8 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 									swprintf_s(szTypeStrings[i], L"'%s'", types[i]->string.c_str());
 							}
 							Log(
-								L"Failed to update resource with type %s, name %s, and language %u in file '%s'",
-								szTypeStrings[0], szTypeStrings[1], res.wLangId, szTempFile
+								L"Failed to update resource with type %s, name %s, and language %u in file '%s'. Error: %d",
+								szTypeStrings[0], szTypeStrings[1], res.wLangId, szTempFile, GetLastError()
 							);
 							goto cleanup;
 						}
