@@ -204,6 +204,9 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 						hItem = TreeView_GetSelection(_hwndOptions);
 					}
 
+					if (!hItem)
+						return 0;
+
 					TVITEMW tvi = { 0 };
 					tvi.mask = TVIF_HANDLE | TVIF_PARAM;
 					tvi.hItem = hItem;
