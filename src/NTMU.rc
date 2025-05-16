@@ -15,7 +15,7 @@ IDM_MAINMENU MENU
 	POPUP "&Tools"
 	{
 		MENUITEM "&Restart Explorer"                    IDM_TOOLSKILLEXPLORER
-		MENUITEM "&Clear Icon Cache"                    IDM_TOOLSCLEARICOCACHE
+		MENUITEM "&Clear Icon/Thumbnail Cache"          IDM_TOOLSCLEARICOCACHE
 		MENUITEM "Manage &System Restore..."            IDM_TOOLSSYSRESTORE
 	}
 	POPUP "&Help"

@@ -171,6 +171,7 @@
     <ClInclude Include="PEResources.h" />
     <ClInclude Include="PreviewWindow.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="ThumbCache.h" />
     <ClInclude Include="TrustedInstaller.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Window.h" />

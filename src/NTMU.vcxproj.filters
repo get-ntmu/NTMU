@@ -95,6 +95,9 @@
     <ClInclude Include="PEResources.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ThumbCache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="NTMU.rc">

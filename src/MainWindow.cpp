@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "DPIHelpers.h"
 #include "Logging.h"
+#include "ThumbCache.h"
 #include <locale>
 #include <codecvt>
 #include <pathcch.h>
@@ -90,6 +91,43 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDM_FILEEXIT:
 					PostMessageW(hWnd, WM_CLOSE, 0, 0);
 					break;
+				case IDM_TOOLSCLEARICOCACHE:
+				{
+					WCHAR szExePath[MAX_PATH];
+					GetSystemDirectoryW(szExePath, MAX_PATH);
+					PathCchAppend(szExePath, MAX_PATH, L"ie4uinit.exe");
+
+					ShellExecuteW(
+						NULL, L"open",
+						szExePath, L"-show",
+						nullptr, SW_SHOWNORMAL
+					);
+
+					wil::com_ptr<IEmptyVolumeCache> spEmptyVolCache;
+					if (SUCCEEDED(CoCreateInstance(
+						CLSID_EmptyVolumeCache, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&spEmptyVolCache))))
+					{
+						wil::unique_hkey hKey;
+						LSTATUS status = RegOpenKeyExW(
+							HKEY_LOCAL_MACHINE,
+							L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VolumeCaches\\Thumbnail Cache",
+							NULL,
+							KEY_READ,
+							&hKey
+						);
+						status;
+						DWORD dwFlags = EVCF_SETTINGSMODE;
+						wil::unique_cotaskmem_string spszDisplayName, spszDescription;
+						if (SUCCEEDED(
+							spEmptyVolCache->Initialize(hKey.get(), L"C:", &spszDisplayName, &spszDescription, &dwFlags)))
+						{
+							CEmptyVolumeCacheCallBack cb;
+							spEmptyVolCache->Purge((DWORDLONG)-1, &cb);
+							spEmptyVolCache->Deactivate(&dwFlags);
+						}
+					}
+					// fall-thru
+				}
 				case IDM_TOOLSKILLEXPLORER:
 				{
 					DWORD dwExplorerPID = 0;
@@ -106,19 +144,6 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 					TerminateProcess(hProcess, 0);
 					CloseHandle(hProcess);
-					break;
-				}
-				case IDM_TOOLSCLEARICOCACHE:
-				{
-					WCHAR szExePath[MAX_PATH];
-					GetSystemDirectoryW(szExePath, MAX_PATH);
-					PathCchAppend(szExePath, MAX_PATH, L"ie4uinit.exe");
-
-					ShellExecuteW(
-						NULL, L"open",
-						szExePath, L"-show",
-						nullptr, SW_SHOWNORMAL
-					);
 					break;
 				}
 				case IDM_TOOLSSYSRESTORE:
