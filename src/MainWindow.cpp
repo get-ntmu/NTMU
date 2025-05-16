@@ -108,14 +108,13 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 						CLSID_EmptyVolumeCache, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&spEmptyVolCache))))
 					{
 						wil::unique_hkey hKey;
-						LSTATUS status = RegOpenKeyExW(
+						RegOpenKeyExW(
 							HKEY_LOCAL_MACHINE,
 							L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VolumeCaches\\Thumbnail Cache",
 							NULL,
 							KEY_READ,
 							&hKey
 						);
-						status;
 						DWORD dwFlags = EVCF_SETTINGSMODE;
 						wil::unique_cotaskmem_string spszDisplayName, spszDescription;
 						if (SUCCEEDED(
