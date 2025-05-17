@@ -56,3 +56,20 @@ FONT 8, "MS Shell Dlg 2"
 	DEFPUSHBUTTON "OK", IDOK, 142, 78, 50, 14
 	PUSHBUTTON "&GitHub", IDC_GITHUB, 88, 78, 50, 14
 }
+
+#include <ntverp.h>
+#define VER_FILETYPE                    VFT_APP
+#define VER_FILESUBTYPE                 VFT_UNKNOWN
+#undef  VER_COMPANYNAME_STR
+#define VER_COMPANYNAME_STR             "aubymori"
+#undef  VER_PRODUCTNAME_STR
+#define VER_PRODUCTNAME_STR             "Windows NT Modding Utility"
+#define VER_FILEDESCRIPTION_STR         "Windows NT Modding Utility"
+#define VER_INTERNALNAME_STR            "NTMU"
+#define VER_LEGALCOPYRIGHT_YEARS        "2025"
+#define VER_ORIGINALFILENAME_STR        "NTMU.exe"
+#undef  VER_PRODUCTVERSION
+#define VER_PRODUCTVERSION              VER_MAJOR,VER_MINOR,VER_REVISION,0
+#undef  VER_PRODUCTVERSION_STR
+#define VER_PRODUCTVERSION_STR          VER_STRING
+#include <common.ver>
