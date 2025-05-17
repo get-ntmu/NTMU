@@ -857,7 +857,11 @@ static inline void ScreenCenteredRect(
 )
 {
 	UINT uDpi = DPIHelpers::GetSystemDPI();
-	RECT rc = { 0, 0, cx, cy };
+	RECT rc = {
+		0, 0,
+		MulDiv(cx, uDpi, 96),
+		MulDiv(cy, uDpi, 96)
+	};
 	DPIHelpers::AdjustWindowRectForDPI(&rc, dwStyle, dwExStyle, fMenu, uDpi);
 	cx = RECTWIDTH(rc);
 	cy = RECTHEIGHT(rc);
