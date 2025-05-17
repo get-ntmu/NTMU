@@ -6,9 +6,9 @@
 #include <codecvt>
 #include <pathcch.h>
 
-const WCHAR c_szGitHubURL[] = L"https://github.com/aubymori/NTMU";
-const WCHAR c_szHelpURL[] = L"https://github.com/aubymori/NTMU/wiki";
-const WCHAR c_szGetPacksURL[] = L"https://aubymori.github.io/NTMU/#!/packs";
+const WCHAR c_szGitHubURL[] = L"https://github.com/get-ntmu/NTMU";
+const WCHAR c_szHelpURL[] = L"https://github.com/get-ntmu/NTMU/wiki";
+const WCHAR c_szGetPacksURL[] = L"https://get-ntmu.github.io//#!/packs";
 
 INT_PTR CALLBACK CMainWindow::s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
