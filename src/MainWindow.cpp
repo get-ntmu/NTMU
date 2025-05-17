@@ -34,7 +34,7 @@ INT_PTR CALLBACK CMainWindow::s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam
 				case IDC_GITHUB:
 					ShellExecuteW(
 						hWnd, L"open",
-						L"https://github.com/aubymori/NTMU",
+						c_szGitHubURL,
 						NULL, NULL,
 						SW_SHOWNORMAL
 					);
