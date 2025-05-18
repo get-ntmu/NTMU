@@ -42,11 +42,6 @@ STDMETHODIMP CEnumPEResources::Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam)
 	return HRESULT_FROM_WIN32(GetLastError());
 }
 
-STDMETHODIMP_(void) CEnumPEResources::Destroy()
-{
-	delete this;
-}
-
 CEnumPEResources::CEnumPEResources()
 	: _hMod(NULL)
 {

@@ -71,11 +71,6 @@ STDMETHODIMP CEnumRESResources::Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam)
 	return S_OK;
 }
 
-STDMETHODIMP_(void) CEnumRESResources::Destroy()
-{
-	delete this;
-}
-
 CEnumRESResources::CEnumRESResources()
 	: _pbData(nullptr)
 	, _cbData(0)

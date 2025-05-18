@@ -44,7 +44,6 @@ private:
 public:
 	// == Begin IEnumResources interface ==
 	STDMETHODIMP Enum(ENUMRESPROC lpEnumFunc, LPVOID lpParam) override;
-	STDMETHODIMP_(void) Destroy() override;
 	// == End IEnumResources interface ==
 
 	CEnumRESResources();

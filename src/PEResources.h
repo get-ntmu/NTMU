@@ -73,7 +73,7 @@ inline bool LoadResources(LPCWSTR pszFile, bool fTryRes, std::vector<PEResource>
 		},
 		&result
 	));
-	pEnum->Destroy();
+	delete pEnum;
 	return fSucceeded;
 }
 

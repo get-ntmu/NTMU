@@ -6,5 +6,5 @@ typedef BOOL (CALLBACK *ENUMRESPROC)(LPVOID lpParam, LPCWSTR lpType, LPCWSTR lpN
 interface NTMU_IEnumResources
 {
 	STDMETHOD(Enum)(ENUMRESPROC lpEnumFunc, LPVOID lpParam) PURE;
-	STDMETHOD_(void, Destroy)() PURE;
+	virtual ~NTMU_IEnumResources() {}
 };
