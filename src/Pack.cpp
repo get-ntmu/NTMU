@@ -345,6 +345,7 @@ void CPack::Reset()
 	_author.clear();
 	_version.clear();
 	_previewPath.clear();
+	_readmePath.clear();
 	_options.clear();
 	_sections.clear();
 }
