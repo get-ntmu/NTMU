@@ -714,7 +714,7 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 
 					HANDLE hUpdateRes = NULL;
 					bool fSucceeded = false;
-					std::vector<PEResource> destResources, sourceResources;
+					PEResources destResources, sourceResources;
 					if (!LoadResources(szTempFile, false, destResources))
 					{
 						Log(L"Failed to load resources for file '%s'", szTempFile);
@@ -728,7 +728,124 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 					MergeResources(sourceResources, destResources);
 
 					hUpdateRes = BeginUpdateResourceW(szTempFile, TRUE);
-					for (const auto &res : destResources)
+					
+					// We do group icons and group cursors separately due to how shit the system is.
+					// Group icons/icons and group cursors/cursors are technically separate resources,
+					// but the group icon/group cursor resource is just a resource that has a list of
+					// icon/cursor resources to use and other information e.g. what size they are. Why
+					// didn't Microsoft clump this all into one big resource? I don't know. Maybe Win16
+					// limitations prevented it and that somehow carried over into Win32 and the PE format.
+					// All I know is that we have to handle these resources specially, otherwise we will
+					// almost certainly cause nasty collisions.
+					//
+					// Also, we do these before regular resources so that we can do MUI resources last,
+					// because Microsoft sucks shit.
+
+					WORD wIconCount; // mmm i love c++ complaining about goto + initializers even on basic fucking types
+					wIconCount = 0;
+					for (const auto &groupIcon : destResources.groupIcons)
+					{
+						size_t entryCount = groupIcon.entries.size();
+						size_t dataSize
+							= sizeof(ICONDIRHEADER) + (sizeof(GRPICONDIRENTRY) * entryCount);
+
+						ICONDIR *pIconDir = (ICONDIR *)LocalAlloc(LPTR, dataSize);
+						if (!pIconDir)
+						{
+							Log(L"Failed to allocate buffer necessary for group icon");
+							goto cleanup;
+						}
+
+						pIconDir->idReserved = 0;
+						pIconDir->idType = RES_ICON;
+						pIconDir->idCount = entryCount;
+						
+						for (int i = 0; i < entryCount; i++)
+						{
+							memcpy(&pIconDir->icons[i], &groupIcon.entries[i], sizeof(GRPICONDIRENTRY));
+							WORD wIconID = ++wIconCount;
+							pIconDir->icons[i].nID = wIconID;
+
+							const auto &data = groupIcon.entries[i].data;
+							if (!UpdateResourceW(
+								hUpdateRes,
+								RT_ICON, MAKEINTRESOURCEW(wIconID),
+								groupIcon.wLangId, (LPBYTE)data.data(), data.size()
+							))
+							{
+								Log(L"Failed to update icon resource");
+								LocalFree(pIconDir);
+								goto cleanup;
+							}
+						}
+
+						if (!UpdateResourceW(
+							hUpdateRes,
+							RT_GROUP_ICON, groupIcon.name.AsID(),
+							groupIcon.wLangId, pIconDir, dataSize
+						))
+						{
+							Log(L"Failed to update group icon resource");
+							LocalFree(pIconDir);
+							goto cleanup;
+						}
+
+						LocalFree(pIconDir);
+					}
+
+					WORD wCursorCount; // mmm i love c++ complaining about goto + initializers even on basic fucking types
+					wCursorCount = 0;
+					for (const auto &groupCursor : destResources.groupCursors)
+					{
+						size_t entryCount = groupCursor.entries.size();
+						size_t dataSize
+							= sizeof(ICONDIRHEADER) + (sizeof(GRPCURSORDIRENTRY) * entryCount);
+
+						ICONDIR *pIconDir = (ICONDIR *)LocalAlloc(LPTR, dataSize);
+						if (!pIconDir)
+						{
+							Log(L"Failed to allocate buffer necessary for group cursor");
+							goto cleanup;
+						}
+
+						pIconDir->idReserved = 0;
+						pIconDir->idType = RES_CURSOR;
+						pIconDir->idCount = entryCount;
+
+						for (int i = 0; i < entryCount; i++)
+						{
+							memcpy(&pIconDir->cursors[i], &groupCursor.entries[i], sizeof(GRPCURSORDIRENTRY));
+							WORD wCursorID = ++wCursorCount;
+							pIconDir->cursors[i].nID = wCursorID;
+
+							const auto &data = groupCursor.entries[i].data;
+							if (!UpdateResourceW(
+								hUpdateRes,
+								RT_CURSOR, MAKEINTRESOURCEW(wCursorID),
+								groupCursor.wLangId, (LPBYTE)data.data(), data.size()
+							))
+							{
+								Log(L"Failed to update cursor resource");
+								LocalFree(pIconDir);
+								goto cleanup;
+							}
+						}
+
+						if (!UpdateResourceW(
+							hUpdateRes,
+							RT_GROUP_CURSOR, groupCursor.name.AsID(),
+							groupCursor.wLangId, pIconDir, dataSize
+						))
+						{
+							Log(L"Failed to update group cursor resource");
+							LocalFree(pIconDir);
+							goto cleanup;
+						}
+
+						LocalFree(pIconDir);
+					}
+
+					for (const auto &res : destResources.resources)
 					{
 						if (!UpdateResourceW(
 							hUpdateRes,
