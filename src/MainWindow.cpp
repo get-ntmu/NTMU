@@ -634,6 +634,8 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath)
 	if (!_pack.Load(pszPath))
 		return;
 
+	EnableMenuItem(GetMenu(_hwnd), IDM_FILEUNLOAD, MF_ENABLED);
+
 	SetWindowTextW(_rghwndMetas[MI_NAME], _pack.GetName().c_str());
 	SetWindowTextW(_rghwndMetas[MI_AUTHOR], _pack.GetAuthor().c_str());
 	SetWindowTextW(_rghwndMetas[MI_VERSION], _pack.GetVersion().c_str());
@@ -679,6 +681,8 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath)
 void CMainWindow::_UnloadPack()
 {
 	_pack.Reset();
+
+	EnableMenuItem(GetMenu(_hwnd), IDM_FILEUNLOAD, MF_DISABLED | MF_GRAYED);
 
 	for (int i = 0; i < MI_COUNT; i++)
 	{

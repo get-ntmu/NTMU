@@ -22,6 +22,7 @@ IDM_MAINMENU MENU
 	{
 		MENUITEM "&Help Topics..."                      IDM_HELPTOPICS
 		MENUITEM "&Get Packs..."                        IDM_HELPGETPACKS
+		MENUITEM SEPARATOR
 		MENUITEM "&About Windows NT Modding Utility..." IDM_HELPABOUT
 	}
 }
