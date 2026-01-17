@@ -12,10 +12,10 @@ void trim(std::wstring &s)
 		}));
 }
 
-bool WaitForProcess(LPCWSTR pszCommandLine, DWORD *lpdwExitCode)
+HRESULT WaitForProcess(LPCWSTR pszCommandLine, DWORD *lpdwExitCode)
 {
 	if (!lpdwExitCode)
-		return false;
+		RETURN_HR(E_INVALIDARG);
 
 	PROCESS_INFORMATION pi;
 	STARTUPINFOW si = { sizeof(si) };
@@ -31,9 +31,11 @@ bool WaitForProcess(LPCWSTR pszCommandLine, DWORD *lpdwExitCode)
 		&si,
 		&pi
 	))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to create process.");
 
 	WaitForSingleObject(pi.hProcess, INFINITE);
 
-	return GetExitCodeProcess(pi.hProcess, lpdwExitCode);
+	return GetExitCodeProcess(pi.hProcess, lpdwExitCode)
+		? S_OK
+		: S_FALSE;
 }

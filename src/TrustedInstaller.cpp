@@ -25,15 +25,15 @@ bool GetProcessIdByName(LPCWSTR lpProcessName, LPDWORD lpdwPid)
 	return (*lpdwPid != -1);
 }
 
-bool ImpersonateSystem(void)
+HRESULT ImpersonateSystem(void)
 {
 	DWORD dwWinlogonPid;
 	if (!GetProcessIdByName(L"winlogon.exe", &dwWinlogonPid))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to get Winlogon process ID.");
 
 	wil::unique_handle hWinlogonProcess(OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, dwWinlogonPid));
 	if (!hWinlogonProcess.get())
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to get handle to Winlogon process.");
 
 	wil::unique_handle hWinlogonToken;
 	if (!OpenProcessToken(
@@ -41,7 +41,7 @@ bool ImpersonateSystem(void)
 		MAXIMUM_ALLOWED,
 		&hWinlogonToken
 	))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to open token for Winlogon process.");
 
 	wil::unique_handle hDupToken;
 	SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES) };
@@ -53,25 +53,81 @@ bool ImpersonateSystem(void)
 		TokenImpersonation,
 		&hDupToken
 	))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to duplicate the Winlogon token.");
 
 	if (!ImpersonateLoggedOnUser(hDupToken.get()))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to impersonate the SYSTEM user account.");
 
-	return true;
+	return S_OK;
 }
 
-bool EnsureTrustedInstallerService(LPDWORD lpdwPid)
+/**
+ * Retrieves service configuration information for a given service name.
+ * 
+ * @param pszServiceName
+ *		The name of the service for which to retrieve configuration information.
+ * @param ppQueryServiceConfig
+ *		Ownership of this memory is transferred to the caller. The caller must free this memory
+ *		with CoTaskMemFree once it is done using it.
+ */
+static HRESULT GetServiceConfig(PCWSTR pszServiceName, QUERY_SERVICE_CONFIG **ppQueryServiceConfig)
 {
+	if (!ppQueryServiceConfig)
+		RETURN_HR(E_INVALIDARG);
+	
+	*ppQueryServiceConfig = nullptr;
+
+	wil::unique_schandle hSCManager(OpenSCManagerW(nullptr, SERVICES_ACTIVE_DATABASE, GENERIC_EXECUTE));
+	if (!hSCManager.get())
+		RETURN_LAST_ERROR_MSG("Failed to open the SC manager.");
+
+	wil::unique_schandle hService(OpenServiceW(hSCManager.get(), pszServiceName, GENERIC_READ));
+	if (!hService.get())
+		RETURN_LAST_ERROR_MSG("Failed to open the %s service.", pszServiceName);
+
+	DWORD cbNeeded;
+	QueryServiceConfig(hService.get(), nullptr, 0, &cbNeeded);
+	RETURN_LAST_ERROR_IF(ERROR_INSUFFICIENT_BUFFER != GetLastError());
+	
+	wil::unique_cotaskmem spConfig(CoTaskMemAlloc(cbNeeded));
+	if (!spConfig.is_valid())
+		RETURN_HR(E_OUTOFMEMORY);
+	
+	RETURN_LAST_ERROR_IF(!QueryServiceConfig(
+		hService.get(), (QUERY_SERVICE_CONFIG *)spConfig.get(), cbNeeded, &cbNeeded));
+	
+	*(void **)ppQueryServiceConfig = spConfig.release();
+	return S_OK;
+}
+
+// This is only used in implementation details, so I'll only define it here.
+// The publicly exposed names are translated by wrapper functions.
+#define NTMU_IMPERSONATION_E_SERVICE_STOPPED NTMU_ERROR(FACILITY_NTMU_IMPERSONATION, 32767)
+
+/**
+ * Ensures that a service which is required for impersonation is up and running.
+ * 
+ * @param pszServiceName 
+ *		The name of the service to attempt to run.
+ * @param lpdwPid
+ *		A pointer to a value to which the resulting process ID will be assigned.
+ * @return
+ *		A generic HRESULT code, or one of the NTMU_IMPERSONATION_S_SERVICE_ codes.
+ */
+static HRESULT EnsureService(PCWSTR pszServiceName, LPDWORD lpdwPid)
+{
+	if (!pszServiceName || !lpdwPid)
+		RETURN_HR(E_INVALIDARG);
+	
 	*lpdwPid = -1;
 
 	wil::unique_schandle hSCManager(OpenSCManagerW(nullptr, SERVICES_ACTIVE_DATABASE, GENERIC_EXECUTE));
 	if (!hSCManager.get())
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to open the SC manager.");
 
-	wil::unique_schandle hService(OpenServiceW(hSCManager.get(), L"TrustedInstaller", GENERIC_READ | GENERIC_EXECUTE));
+	wil::unique_schandle hService(OpenServiceW(hSCManager.get(), pszServiceName, GENERIC_READ | GENERIC_EXECUTE));
 	if (!hService.get())
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to open the %s service.", pszServiceName);
 
 	SERVICE_STATUS_PROCESS status;
 	DWORD cbNeeded;
@@ -87,7 +143,8 @@ bool EnsureTrustedInstallerService(LPDWORD lpdwPid)
 		{
 			case SERVICE_STOPPED:
 				if (!StartServiceW(hService.get(), 0, nullptr))
-					return false;
+					RETURN_HR_MSG(NTMU_IMPERSONATION_E_SERVICE_STOPPED,
+						"Failed to start the %s service.", pszServiceName);
 				break;
 			case SERVICE_START_PENDING:
 			case SERVICE_STOP_PENDING:
@@ -95,27 +152,82 @@ bool EnsureTrustedInstallerService(LPDWORD lpdwPid)
 				continue;
 			case SERVICE_RUNNING:
 				*lpdwPid = status.dwProcessId;
-				return true;
+				return S_OK;
 		}
 	}
 
-	return false;
+	RETURN_HR(E_FAIL);
 }
 
-bool ObtainTrustedInstallerToken(LPHANDLE phToken)
+HRESULT EnsureTrustedInstallerService(LPDWORD lpdwPid)
 {
-	if (!phToken || !ImpersonateSystem())
-		return false;
+	HRESULT hr = EnsureService(L"TrustedInstaller", lpdwPid);
+	
+	if (NTMU_IMPERSONATION_E_SERVICE_STOPPED == hr)
+	{
+		// We'll check for a known condition here: the TrustedInstaller service
+		// being disabled. If this is the case, then it's impossible to start a process
+		// as another user account.
+		QUERY_SERVICE_CONFIG *pSvcConfig;
+		if (SUCCEEDED(GetServiceConfig(L"TrustedInstaller", &pSvcConfig)))
+		{
+			auto freeGuard = wil::scope_exit([pSvcConfig] { CoTaskMemFree(pSvcConfig); });
+			
+			if (SERVICE_DISABLED == pSvcConfig->dwStartType)
+			{
+				RETURN_HR(NTMU_IMPERSONATION_E_TRUSTEDINSTALLER_SVC_DISABLED);
+			}
+		}
+		
+		RETURN_HR(NTMU_IMPERSONATION_E_TRUSTEDINSTALLER_SVC_FAILED);
+	}
+	
+	return hr;
+}
+
+HRESULT EnsureSecondaryLogonService(LPDWORD lpdwPid)
+{
+	HRESULT hr = EnsureService(L"seclogon", lpdwPid);
+	
+	if (NTMU_IMPERSONATION_E_SERVICE_STOPPED == hr)
+	{
+		// We'll check for a known condition here: the Secondary Logon (seclogon) service
+		// being disabled. If this is the case, then it's impossible to start a process
+		// as another user account.
+		QUERY_SERVICE_CONFIG *pSvcConfig;
+		if (SUCCEEDED(GetServiceConfig(L"seclogon", &pSvcConfig)))
+		{
+			auto freeGuard = wil::scope_exit([pSvcConfig] { CoTaskMemFree(pSvcConfig); });
+			
+			if (SERVICE_DISABLED == pSvcConfig->dwStartType)
+			{
+				RETURN_HR(NTMU_IMPERSONATION_E_SECLOGON_SVC_DISABLED);
+			}
+		}
+		
+		RETURN_HR(NTMU_IMPERSONATION_E_SECLOGON_SVC_FAILED);
+	}
+	
+	return hr;
+}
+
+HRESULT ObtainTrustedInstallerToken(LPHANDLE phToken)
+{
+	if (!phToken)
+		RETURN_HR(E_INVALIDARG);
+	RETURN_IF_FAILED(ImpersonateSystem());
 
 	auto stopImpersonating = wil::scope_exit([&]() noexcept { RevertToSelf(); });
-
+	
+	DWORD dwSecLogonPid;
+	RETURN_IF_FAILED(EnsureSecondaryLogonService(&dwSecLogonPid));
+	
 	DWORD dwTIPid;
-	if (!EnsureTrustedInstallerService(&dwTIPid))
-		return false;
+	RETURN_IF_FAILED(EnsureTrustedInstallerService(&dwTIPid));
 
 	wil::unique_handle hTIProcess(OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, dwTIPid));
 	if (!hTIProcess.get())
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to open TrustedInstaller process.");
 
 	wil::unique_handle hTIToken;
 	if (!OpenProcessToken(
@@ -123,7 +235,7 @@ bool ObtainTrustedInstallerToken(LPHANDLE phToken)
 		MAXIMUM_ALLOWED,
 		&hTIToken
 	))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to open the token of the TrustedInstaller process.");
 
 	SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES) };
 	if (!DuplicateTokenEx(
@@ -134,25 +246,22 @@ bool ObtainTrustedInstallerToken(LPHANDLE phToken)
 		TokenImpersonation,
 		phToken
 	))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to duplicate the TrustedInstaller token.");
 
-	return true;
+	return S_OK;
 }
 
-bool ImpersonateTrustedInstaller(void)
+HRESULT ImpersonateTrustedInstaller(void)
 {
 	wil::unique_handle hTIToken;
-	if (!ObtainTrustedInstallerToken(&hTIToken))
-		return false;
-
+	RETURN_IF_FAILED(ObtainTrustedInstallerToken(&hTIToken));
 	return ImpersonateLoggedOnUser(hTIToken.get());
 }
 
-bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATION ppi)
+HRESULT CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATION ppi)
 {
 	wil::unique_handle hTIToken;
-	if (!ObtainTrustedInstallerToken(&hTIToken))
-		return false;
+	RETURN_IF_FAILED(ObtainTrustedInstallerToken(&hTIToken));
 
 	STARTUPINFOW si = { 0 };
 	si.lpDesktop = (LPWSTR)L"Winsta0\\Default";
@@ -168,21 +277,22 @@ bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATI
 		&si,
 		ppi
 	))
-		return false;
+		RETURN_LAST_ERROR_MSG("Failed to create process with the TrustedInstaller profile.");
 
-	return true;
+	return S_OK;
 }
 
-bool WaitForProcessAsTrustedInstaller(LPCWSTR pszCommandLine, DWORD *lpdwExitCode)
+HRESULT WaitForProcessAsTrustedInstaller(LPCWSTR pszCommandLine, DWORD *lpdwExitCode)
 {
 	if (!lpdwExitCode)
-		return false;
+		RETURN_HR(E_INVALIDARG);
 
 	PROCESS_INFORMATION pi;
-	if (!CreateProcessAsTrustedInstaller(pszCommandLine, &pi))
-		return false;
+	RETURN_IF_FAILED(CreateProcessAsTrustedInstaller(pszCommandLine, &pi));
 
 	WaitForSingleObject(pi.hProcess, INFINITE);
 
-	return GetExitCodeProcess(pi.hProcess, lpdwExitCode);
+	return GetExitCodeProcess(pi.hProcess, lpdwExitCode)
+		? S_OK
+		: S_FALSE;
 }
