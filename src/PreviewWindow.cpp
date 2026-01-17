@@ -63,16 +63,7 @@ LRESULT CPreviewWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 			}
 			else
 			{
-				HFONT hfOld = (HFONT)SelectObject(hdc, _hfMessage);
-				int bkOld = SetBkMode(hdc, TRANSPARENT);
-
-				DrawTextW(
-					hdc, _szNoPreview, -1,
-					&rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_WORDBREAK
-				);
-
-				SetBkMode(hdc, bkOld);
-				SelectObject(hdc, hfOld);
+				DrawPlaceholder(hdc, rc);
 			}
 
 			SelectObject(hdc, hpenOld);
@@ -96,7 +87,7 @@ LRESULT CPreviewWindow::_OnCreate()
 	if (Gdiplus::Ok != Gdiplus::GdiplusStartup(&_ulGdipToken, &si, nullptr))
 		return -1;
 
-	LoadStringW(g_hinst, IDS_NOPREVIEW, _szNoPreview, MAX_PATH);
+	LoadPlaceholderText(g_hinst, IDS_NOPREVIEW);
 	return 0;
 }
 
@@ -131,9 +122,7 @@ CPreviewWindow *CPreviewWindow::CreateAndShow(HWND hwndParent)
 }
 
 CPreviewWindow::CPreviewWindow()
-	: _szNoPreview{ 0 }
-	, _hfMessage(NULL)
-	, _pFactory(nullptr)
+	: _pFactory(nullptr)
 	, _pbmPreview(nullptr)
 	, _ulGdipToken(0)
 {
@@ -146,11 +135,6 @@ CPreviewWindow::~CPreviewWindow()
 		Gdiplus::GdiplusShutdown(_ulGdipToken);
 
 	CoUninitialize();
-}
-
-void CPreviewWindow::SetFont(HFONT hFont)
-{
-	_hfMessage = hFont;
 }
 
 HRESULT CPreviewWindow::SetImage(LPCWSTR pszPath)

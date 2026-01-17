@@ -1,15 +1,16 @@
 #pragma once
 #include "Window.h"
+#include "PlaceholderWindow.h"
 #include <gdiplus.h>
 #include <wincodec.h>
 
 static constexpr WCHAR c_szPreviewWindowClass[] = L"NTMU_Preview";
 
-class CPreviewWindow : public CWindow<CPreviewWindow, c_szPreviewWindowClass>
+class CPreviewWindow
+	: public CWindow<CPreviewWindow, c_szPreviewWindowClass>
+	, public CPlaceholderWindowBase
 {
 private:
-	WCHAR _szNoPreview[MAX_PATH];
-	HFONT _hfMessage;
 	wil::com_ptr<IWICImagingFactory> _pFactory;
 	Gdiplus::Bitmap *_pbmPreview;
 	ULONG_PTR _ulGdipToken;
@@ -24,7 +25,6 @@ public:
 
 	CPreviewWindow();
 	~CPreviewWindow();
-
-	void SetFont(HFONT hFont);
+	
 	HRESULT SetImage(LPCWSTR pszPath);
 };
