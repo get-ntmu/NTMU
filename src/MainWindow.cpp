@@ -195,11 +195,16 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_GETMINMAXINFO:
 		{
 			MINMAXINFO *pMinMaxInfo = (MINMAXINFO *)lParam;
-				
+			
 			// We'll limit the window size to a minimum of 320x200 to prevent the
 			// controls from overlapping where they shouldn't.
-			pMinMaxInfo->ptMinTrackSize.x = 320;
-			pMinMaxInfo->ptMinTrackSize.y = 200;
+			DWORD dwStyle = GetWindowLongW(hWnd, GWL_STYLE);
+			DWORD dwExStyle = GetWindowLongW(hWnd, GWL_EXSTYLE);
+			RECT rc = { 0, 0, 320, 200 };
+			UINT uiDpi = DPIHelpers::GetWindowDPI(hWnd);
+			DPIHelpers::AdjustWindowRectForDPI(&rc, dwStyle, dwExStyle, true, uiDpi);
+			pMinMaxInfo->ptMinTrackSize.x = RECTWIDTH(rc);
+			pMinMaxInfo->ptMinTrackSize.y = RECTHEIGHT(rc);
 
 			return 0;
 		}
