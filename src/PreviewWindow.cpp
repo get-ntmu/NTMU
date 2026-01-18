@@ -1,5 +1,8 @@
 #include "PreviewWindow.h"
 
+#include <cmath>
+#include <limits>
+
 LRESULT CPreviewWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
@@ -27,11 +30,11 @@ LRESULT CPreviewWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 			LineTo(hdc, rc.left, rc.bottom - 1);
 			LineTo(hdc, rc.left, rc.top);
 
-			if (_pbmPreview)
+			if (_pbmPreviewOriginal)
 			{ 
 				Gdiplus::Graphics gfx(hdc);
-				int width = _pbmPreview->GetWidth();
-				int height = _pbmPreview->GetHeight();
+				int width = _pbmPreviewOriginal->GetWidth();
+				int height = _pbmPreviewOriginal->GetHeight();
 
 				InflateRect(&rc, -1, -1);
 
@@ -58,8 +61,77 @@ LRESULT CPreviewWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 					1 + (RECTHEIGHT(rc) - scaledHeight) / 2,
 					scaledWidth, scaledHeight
 				);
+				
+				// Select the desirable mipmapped image for the scaled width/height:
+				Gdiplus::Bitmap *pBitmapToDraw;
+				bool fIsBadFpResult = false;
+				float flBestMipmapIdx = floor(log10((float)scaledWidth / (float)width) / log10(0.5f));
+				if (std::numeric_limits<float>::infinity() == flBestMipmapIdx || std::isnan(flBestMipmapIdx))
+				{
+					fIsBadFpResult = true;
+				}
+				
+				UINT idxMipmap = flBestMipmapIdx - 1;
+
+				if (!_prgpbmMipmapPreviews || 0 == _cMipmapPreviews
+					|| fIsBadFpResult || idxMipmap >= _cMipmapPreviews)
+				{
+					pBitmapToDraw = _pbmPreviewOriginal;
+				}
+				else
+				{
+					pBitmapToDraw = _prgpbmMipmapPreviews[idxMipmap];
+				}
+				
 				gfx.SetInterpolationMode(Gdiplus::InterpolationModeBicubic);
-				gfx.DrawImage(_pbmPreview, rect);
+				gfx.DrawImage(pBitmapToDraw, rect);
+				
+				
+// #define MIPMAP_SHOWDEBUG
+#ifdef MIPMAP_SHOWDEBUG
+				if (pBitmapToDraw != _pbmPreviewOriginal)
+				{
+					static const WCHAR rgszNumberMap[][3] = {
+						L"0",
+						L"1",
+						L"2",
+						L"3",
+						L"4",
+						L"5",
+						L"6",
+						L"7",
+						L"8",
+						L"9",
+						L"10",
+						L"11",
+						L"12",
+						L"13",
+						L"14",
+						L"15",
+						L"16",
+						L"17",
+						L"18",
+						L"19",
+						L"20",
+						L"21",
+						L"22",
+						L"23",
+						L"24",
+						L"25",
+						L"26",
+						L"27",
+						L"28",
+						L"29",
+						L"30",
+						L"31",
+					};
+					Gdiplus::FontFamily arial(L"Arial");
+					Gdiplus::Font font(&arial, 12);
+					Gdiplus::SolidBrush brush(Gdiplus::Color::Red);
+					Gdiplus::PointF point(rect.X, rect.Y);
+					gfx.DrawString( (LPCWSTR)rgszNumberMap[idxMipmap], (idxMipmap < 10 ? 1 : 2), &font, point, &brush);
+				}
+#endif // MIPMAP_SHOWDEBUG
 			}
 			else
 			{
@@ -123,7 +195,9 @@ CPreviewWindow *CPreviewWindow::CreateAndShow(HWND hwndParent)
 
 CPreviewWindow::CPreviewWindow()
 	: _pFactory(nullptr)
-	, _pbmPreview(nullptr)
+	, _pbmPreviewOriginal(nullptr)
+	, _prgpbmMipmapPreviews(nullptr)
+	, _cMipmapPreviews(0)
 	, _ulGdipToken(0)
 {
 	
@@ -133,18 +207,73 @@ CPreviewWindow::~CPreviewWindow()
 {
 	if (_ulGdipToken)
 		Gdiplus::GdiplusShutdown(_ulGdipToken);
+	
+	delete[] _prgpbmMipmapPreviews;
 
 	CoUninitialize();
+}
+
+/**
+ * Creates a single mipmap step of the requested image.
+ * 
+ * This allows the preservation of quality by using a slow, high quality blurring algorithm for
+ * major steps while still allowing for real time scaling as the steps are precomputed and
+ * cached.
+ * 
+ * @param pBitmapSource A pointer to the original bitmap source.
+ * @param width The requested width of the image.
+ * @param height The requested height of the image.
+ * @param ppMipmapOut Pointer to the location at which to store the resulting bitmap pointer.
+ * @return 
+ *		If successful and the width and height of the resulting image are the same as requested,
+ *		then S_OK.
+ *		If successful, but the width and height of the resulting image were changed by an
+ *		intermediate operation, then S_FALSE.
+ */
+HRESULT CPreviewWindow::_CreateMipmap(IWICBitmapSource *pBitmapSource, int width, int height, Gdiplus::Bitmap **ppMipmapOut)
+{
+	RETURN_HR_IF_NULL(E_INVALIDARG, pBitmapSource);
+	RETURN_HR_IF_NULL(E_INVALIDARG, ppMipmapOut);
+
+	*ppMipmapOut = nullptr;
+
+	HRESULT hr = S_OK;
+	
+	wil::com_ptr<IWICBitmapScaler> spScaler;
+	RETURN_IF_FAILED(_pFactory->CreateBitmapScaler(&spScaler));
+	
+	RETURN_IF_FAILED(spScaler->Initialize(
+		pBitmapSource, width, height, WICBitmapInterpolationModeHighQualityCubic));
+	
+	UINT workingWidth, workingHeight;
+	RETURN_IF_FAILED(spScaler->GetSize(&workingWidth, &workingHeight));
+	
+	if (workingWidth != width || workingHeight != height)
+	{
+		// This is just a weird case. It shouldn't necessarily mean anything bad, but
+		// maybe we'll return S_FALSE here instead of S_OK.h
+		hr = S_FALSE;
+	}
+	
+	Gdiplus::Bitmap *pScaledBitmap = new Gdiplus::Bitmap(workingWidth, workingHeight);
+	Gdiplus::BitmapData bd;
+	Gdiplus::Rect rect(0, 0, workingWidth, workingHeight);
+	pScaledBitmap->LockBits(&rect, Gdiplus::ImageLockModeWrite, PixelFormat32bppPARGB, &bd);
+	RETURN_IF_FAILED(spScaler->CopyPixels(nullptr, bd.Stride, bd.Stride * height, (LPBYTE)bd.Scan0));
+	pScaledBitmap->UnlockBits(&bd);
+	
+	*ppMipmapOut = std::move(pScaledBitmap);
+	return hr;
 }
 
 HRESULT CPreviewWindow::SetImage(LPCWSTR pszPath)
 {
 	if (!pszPath || !pszPath[0])
 	{
-		if (_pbmPreview)
+		if (_pbmPreviewOriginal)
 		{
-			delete _pbmPreview;
-			_pbmPreview = nullptr;
+			delete _pbmPreviewOriginal;
+			_pbmPreviewOriginal = nullptr;
 		}
 		InvalidateRect(_hwnd, nullptr, TRUE);
 		return S_OK;
@@ -169,14 +298,52 @@ HRESULT CPreviewWindow::SetImage(LPCWSTR pszPath)
 	));
 
 	UINT width, height;
-	pConverter->GetSize(&width, &height);
-	_pbmPreview = new Gdiplus::Bitmap(width, height, PixelFormat32bppPARGB);
+	RETURN_IF_FAILED(pConverter->GetSize(&width, &height));
+	_pbmPreviewOriginal = new Gdiplus::Bitmap(width, height, PixelFormat32bppPARGB);
 
 	Gdiplus::BitmapData bd;
 	Gdiplus::Rect rect(0, 0, width, height);
-	_pbmPreview->LockBits(&rect, Gdiplus::ImageLockModeWrite, PixelFormat32bppPARGB, &bd);
+	_pbmPreviewOriginal->LockBits(&rect, Gdiplus::ImageLockModeWrite, PixelFormat32bppPARGB, &bd);
 	RETURN_IF_FAILED(pConverter->CopyPixels(nullptr, bd.Stride, bd.Stride * height, (LPBYTE)bd.Scan0));
-	_pbmPreview->UnlockBits(&bd);
+	_pbmPreviewOriginal->UnlockBits(&bd);
+	
+	// Next, we'll find the number of mipmap steps to load. This can be approximated through
+	// a simple binary logarithm, as the steps decrease in size exponentially from the
+	// original image. Once we hit 16x16, we'll cut it off.
+	UINT nSteps = log2(max(width, height));
+	if (UINT_MAX != nSteps)
+	{
+		_prgpbmMipmapPreviews = new Gdiplus::Bitmap *[nSteps];
+		_cMipmapPreviews = nSteps;
+		
+		double nextWidth = width, nextHeight = height;
+		for (int i = 0; i < nSteps; i++)
+		{
+			nextWidth /= 2;
+			nextHeight /= 2;
+
+			if (floor(nextWidth) < 16 || floor(nextHeight) < 16)
+			{
+				// We'll break at this point to ensure that the size of things remains
+				// rather small.
+				_cMipmapPreviews = i;
+				break;
+			}
+			
+			HRESULT hrFailed = LOG_IF_FAILED_MSG(
+				_CreateMipmap(pConverter.get(), nextWidth, nextHeight, &_prgpbmMipmapPreviews[i]),
+				"Failed to create mipmap %d with dimensions %dx%d", i, nextWidth, nextHeight);
+			
+			if (FAILED(hrFailed))
+			{
+				delete[] _prgpbmMipmapPreviews;
+				_prgpbmMipmapPreviews = nullptr;
+				_cMipmapPreviews = 0;
+				break;
+			}
+		}
+	}
+	
 	InvalidateRect(_hwnd, nullptr, TRUE);
 	return S_OK;
 }

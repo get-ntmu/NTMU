@@ -12,12 +12,16 @@ class CPreviewWindow
 {
 private:
 	wil::com_ptr<IWICImagingFactory> _pFactory;
-	Gdiplus::Bitmap *_pbmPreview;
 	ULONG_PTR _ulGdipToken;
+	Gdiplus::Bitmap *_pbmPreviewOriginal;
+	
+	Gdiplus::Bitmap **_prgpbmMipmapPreviews;
+	int _cMipmapPreviews;
 
 	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
 	LRESULT _OnCreate();
+	HRESULT _CreateMipmap(IWICBitmapSource *pBitmapSource, int width, int height, Gdiplus::Bitmap **ppMipmapOut);
 
 public:
 	static HRESULT RegisterWindowClass();
