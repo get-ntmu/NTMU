@@ -240,7 +240,7 @@ bool CPack::_ParseMinAndMaxBuilds(const INISection &sec, PackSection &psec)
 // static
 bool CPack::_CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo)
 {
-	if (!ImpersonateTrustedInstaller())
+	if (FAILED(ImpersonateTrustedInstaller()))
 	{
 		Log(L"Failed to impersonate TrustedInstaller");
 		return false;
@@ -669,12 +669,45 @@ bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
 					command += L"\"";
 
 					DWORD dwExitCode;
-					if (!pfnWaitFunc(command.c_str(), &dwExitCode))
+					HRESULT hr = pfnWaitFunc(command.c_str(), &dwExitCode);
+					if (NTMU_IMPERSONATION_E_TRUSTEDINSTALLER_SVC_DISABLED == hr)
 					{
-						Log(L"Failed to create regedit.exe process. Error: %u", GetLastError());
+						Log(
+							L"Failed to create regedit.exe process, which requires the TrustedInstaller service "
+							L"to be available. A required service is disabled.");
 						return false;
 					}
-					
+					if (NTMU_IMPERSONATION_E_TRUSTEDINSTALLER_SVC_FAILED == hr)
+					{
+						Log(
+							L"Failed to create regedit.exe process, which requires the TrustedInstaller service "
+							L"to be available. A required service failed to start.");
+						return false;
+					}
+					if (NTMU_IMPERSONATION_E_SECLOGON_SVC_DISABLED == hr)
+					{
+						Log(
+							L"Failed to create regedit.exe process, which requires the Seclogon service "
+							L"to be available. A required service is disabled.");
+						return false;
+					}
+					if (NTMU_IMPERSONATION_E_SECLOGON_SVC_FAILED == hr)
+					{
+						Log(
+							L"Failed to create regedit.exe process, which requires the Seclogon service "
+							L"to be available. A required service failed to start.");
+						return false;
+					}
+					if (FAILED(hr))
+					{
+						Log(L"Failed to create regedit.exe process. HRESULT: %8x. Last error: %u.", hr, GetLastError());
+						return false;
+					}
+					if (S_FALSE == hr)
+					{
+						Log(L"Failed to create regedit.exe process. Exit code: %u.", dwExitCode);
+						return false;
+					}
 					if (dwExitCode != 0)
 					{
 						Log(L"regedit.exe exited with error code %u.", dwExitCode);

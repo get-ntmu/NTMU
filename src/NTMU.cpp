@@ -28,6 +28,20 @@ bool EnablePrivilege(LPCWSTR lpPrivilegeName)
 	return fSucceeded;
 }
 
+// If we're in a debug version of NTMU, then it's useful to forward detailed error
+// logs from WIL so developers more easily trace failures.
+#ifdef _DEBUG
+#include "Logging.h"
+void CALLBACK WilLogCallback(wil::FailureInfo const &failure) noexcept
+{
+	wchar_t message[2048];
+	if (SUCCEEDED(wil::GetFailureLogString(message, ARRAYSIZE(message), failure)))
+	{
+		Log(L"%s", message);
+	}
+}
+#endif
+
 int WINAPI wWinMain(
 	_In_     HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -46,6 +60,10 @@ int WINAPI wWinMain(
 		);
 		return -1;
 	}
+#endif
+
+#ifdef _DEBUG
+	wil::SetResultLoggingCallback(WilLogCallback);
 #endif
 
 	RTL_OSVERSIONINFOW osvi = { sizeof(osvi) };

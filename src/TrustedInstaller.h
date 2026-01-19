@@ -3,7 +3,14 @@
 
 /* Provides APIs for working as NT AUTHORITY\SYSTEM (TrustedInstaller). */
 
-bool ImpersonateSystem(void);
-bool ImpersonateTrustedInstaller(void);
-bool CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATION ppi);
-bool WaitForProcessAsTrustedInstaller(LPCWSTR pszCommandLine, DWORD *lpdwExitCode);
+#define FACILITY_NTMU_IMPERSONATION 3500
+
+#define NTMU_IMPERSONATION_E_TRUSTEDINSTALLER_SVC_DISABLED NTMU_ERROR(FACILITY_NTMU_IMPERSONATION, 1)
+#define NTMU_IMPERSONATION_E_TRUSTEDINSTALLER_SVC_FAILED   NTMU_ERROR(FACILITY_NTMU_IMPERSONATION, 2)
+#define NTMU_IMPERSONATION_E_SECLOGON_SVC_DISABLED         NTMU_ERROR(FACILITY_NTMU_IMPERSONATION, 3)
+#define NTMU_IMPERSONATION_E_SECLOGON_SVC_FAILED           NTMU_ERROR(FACILITY_NTMU_IMPERSONATION, 4)
+
+HRESULT ImpersonateSystem(void);
+HRESULT ImpersonateTrustedInstaller(void);
+HRESULT CreateProcessAsTrustedInstaller(LPCWSTR pszCommandLine, LPPROCESS_INFORMATION ppi);
+HRESULT WaitForProcessAsTrustedInstaller(LPCWSTR pszCommandLine, DWORD *lpdwExitCode);
