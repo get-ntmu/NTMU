@@ -62,10 +62,10 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_COMMAND:
 			switch (LOWORD(wParam))
 			{
-				case IDC_APPLY:
+			case IDC_APPLY:
 					_ApplyPack();
 					break;
-				case IDM_FILEOPEN:
+			case IDM_FILEOPEN:
 				{
 					WCHAR szFilePath[MAX_PATH] = { 0 };
 					OPENFILENAMEW ofn = { 0 };
@@ -83,15 +83,15 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					}
 					break;
 				}
-				case IDM_FILEUNLOAD:
+			case IDM_FILEUNLOAD:
 				{
 					_UnloadPack();
 					break;
 				}
-				case IDM_FILEEXIT:
+			case IDM_FILEEXIT:
 					PostMessageW(hWnd, WM_CLOSE, 0, 0);
 					break;
-				case IDM_TOOLSCLEARICOCACHE:
+			case IDM_TOOLSCLEARICOCACHE:
 				{
 					WCHAR szExePath[MAX_PATH];
 					GetSystemDirectoryW(szExePath, MAX_PATH);
@@ -127,7 +127,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					}
 					// fall-thru
 				}
-				case IDM_TOOLSKILLEXPLORER:
+			case IDM_TOOLSKILLEXPLORER:
 				{
 					DWORD dwExplorerPID = 0;
 					HWND hwndShell = FindWindowW(L"Shell_TrayWnd", nullptr);
@@ -145,7 +145,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					CloseHandle(hProcess);
 					break;
 				}
-				case IDM_TOOLSSYSRESTORE:
+			case IDM_TOOLSSYSRESTORE:
 				{
 					WCHAR szExePath[MAX_PATH];
 					GetSystemDirectoryW(szExePath, MAX_PATH);
@@ -158,8 +158,8 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					);
 					break;
 				}
-				case IDM_HELPTOPICS:
-				case IDM_HELPGETPACKS:
+			case IDM_HELPTOPICS:
+			case IDM_HELPGETPACKS:
 				{
 					LPCWSTR pszURL = (LOWORD(wParam) == IDM_HELPTOPICS) ? c_szHelpURL : c_szGetPacksURL;
 					ShellExecuteW(
@@ -169,14 +169,14 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					);
 					break;
 				}
-				case IDM_HELPABOUT:
+			case IDM_HELPABOUT:
 					DialogBoxParamW(g_hinst, MAKEINTRESOURCEW(IDD_ABOUT), hWnd, s_AboutDlgProc, NULL);
 					break;
 			}
 			return 0;
-		// Make the read-only text control use Window background
-		// instead of ButtonFace. This looks better with the options
-		// pane.
+			// Make the read-only text control use Window background
+			// instead of ButtonFace. This looks better with the options
+			// pane.
 		case WM_CTLCOLORSTATIC:
 			if ((HWND)lParam == _hwndText)
 				return (LRESULT)(COLOR_WINDOW + 1);
@@ -192,6 +192,22 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_SIZE:
 			_UpdateLayout();
 			return 0;
+		case WM_GETMINMAXINFO:
+		{
+			MINMAXINFO *pMinMaxInfo = (MINMAXINFO *)lParam;
+			
+			// We'll limit the window size to a minimum of 320x200 to prevent the
+			// controls from overlapping where they shouldn't.
+			DWORD dwStyle = GetWindowLongW(hWnd, GWL_STYLE);
+			DWORD dwExStyle = GetWindowLongW(hWnd, GWL_EXSTYLE);
+			RECT rc = { 0, 0, 320, 200 };
+			UINT uiDpi = DPIHelpers::GetWindowDPI(hWnd);
+			DPIHelpers::AdjustWindowRectForDPI(&rc, dwStyle, dwExStyle, true, uiDpi);
+			pMinMaxInfo->ptMinTrackSize.x = RECTWIDTH(rc);
+			pMinMaxInfo->ptMinTrackSize.y = RECTHEIGHT(rc);
+
+			return 0;
+		}
 		case WM_NOTIFY:
 		{
 			UINT uCode = ((LPNMHDR)lParam)->code;
@@ -329,6 +345,8 @@ void CMainWindow::_OnCreate()
 			_hwnd, NULL, NULL, NULL
 		);
 	}
+	
+	LoadStringW(g_hinst, IDS_NOTSPECIFIED, _szNotSpecified, ARRAYSIZE(_szNotSpecified));
 
 	_hwndProgress = CreateWindowExW(
 		NULL, PROGRESS_CLASSW, nullptr,
@@ -373,10 +391,33 @@ void CMainWindow::_OnCreate()
 		return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 	}, (UINT_PTR)this, NULL);
 
+	CPlaceholderWindow::RegisterWindowClass();
 	CPreviewWindow::RegisterWindowClass();
 	_pPreviewWnd = CPreviewWindow::CreateAndShow(_hwnd);
 	if (_pPreviewWnd)
 		_hwndPreview = _pPreviewWnd->GetHWND();
+	
+	// Create placeholder windows for the readme and options panes.
+	// Because the window is initialized with no mod visible, these windows will
+	// be visible by default.
+	
+	_pTextPlaceholderWnd = CPlaceholderWindow::CreateAndShow(_hwnd);
+	if (_pTextPlaceholderWnd)
+	{
+		_hwndTextPlaceholder = _pTextPlaceholderWnd->GetHWND();
+		_pTextPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		ShowWindow(_hwndText, SW_HIDE);
+		_fShowingTextPlaceholder = true;
+	}
+	
+	_pOptionsPlaceholderWnd = CPlaceholderWindow::CreateAndShow(_hwnd);
+	if (_pOptionsPlaceholderWnd)
+	{
+		_hwndOptionsPlaceholder = _pOptionsPlaceholderWnd->GetHWND();
+		_pOptionsPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		ShowWindow(_hwndOptions, SW_HIDE);
+		_fShowingOptionsPlaceholder = true;
+	}
 
 	_UpdateFonts();
 }
@@ -431,6 +472,12 @@ void CMainWindow::_UpdateFonts()
 
 	if (_pPreviewWnd)
 		_pPreviewWnd->SetFont(_hfMessage);
+	
+	if (_pTextPlaceholderWnd)
+		_pTextPlaceholderWnd->SetFont(_hfMessage);
+	
+	if (_pOptionsPlaceholderWnd)
+		_pOptionsPlaceholderWnd->SetFont(_hfMessage);
 
 	// Update text box font (monospace)
 	if (_hfMonospace)
@@ -557,7 +604,7 @@ void CMainWindow::_UpdateLayout()
 	const int marginX = _XDUToXPix(6);
 	const int marginY = _YDUToYPix(4);
 
-	constexpr int nWindows = (MI_COUNT * 2) + 5;
+	constexpr int nWindows = (MI_COUNT * 2) + c_numLayoutWindows;
 	HDWP hdwp = BeginDeferWindowPos(nWindows);
 
 	// Position and size labels
@@ -604,20 +651,24 @@ void CMainWindow::_UpdateLayout()
 	const int paneWidth = (RECTWIDTH(rcClient) - (marginX * 2)) / 2 - (marginX / 2);
 	const int panesHeight = buttonY - marginY - panesY;
 	hdwp = DeferWindowPos(
-		hdwp, _hwndText, NULL,
+		hdwp, _fShowingTextPlaceholder ? _hwndTextPlaceholder : _hwndText, NULL,
 		marginX, panesY,
 		paneWidth, panesHeight,
 		SWP_NOZORDER
 	);
+	if (_fShowingTextPlaceholder)
+		InvalidateRect(_hwndTextPlaceholder, nullptr, TRUE);
 
 	const int rightPaneX = (marginX * 2) + paneWidth;
 	const int rightPaneHeight = (panesHeight - marginY) / 2;
 	hdwp = DeferWindowPos(
-		hdwp, _hwndOptions, NULL,
+		hdwp, _fShowingOptionsPlaceholder ? _hwndOptionsPlaceholder : _hwndOptions, NULL,
 		rightPaneX, panesY + rightPaneHeight + marginY,
 		paneWidth, rightPaneHeight,
 		SWP_NOZORDER
 	);
+	if (_fShowingOptionsPlaceholder)
+		InvalidateRect(_hwndOptionsPlaceholder, nullptr, TRUE);
 	hdwp = DeferWindowPos(
 		hdwp, _hwndPreview, NULL,
 		rightPaneX, panesY,
@@ -633,12 +684,47 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath)
 {
 	if (!_pack.Load(pszPath))
 		return;
+	
+	if (_pTextPlaceholderWnd)
+	{
+		_pTextPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOREADME);
+		InvalidateRect(_pTextPlaceholderWnd->GetHWND(), nullptr, TRUE);
+	}
+	if (_pOptionsPlaceholderWnd)
+	{
+		_pOptionsPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOOPTIONS);
+		InvalidateRect(_pOptionsPlaceholderWnd->GetHWND(), nullptr, TRUE);
+	}
 
 	EnableMenuItem(GetMenu(_hwnd), IDM_FILEUNLOAD, MF_ENABLED);
-
+	
+	// We'll just enable all of the metadata windows preemptively. This is a bit
+	// lazy, but it works, and this is a rare code path.
+	EnableWindow(_rghwndMetas[MI_NAME], true);
+	EnableWindow(_rghwndMetas[MI_AUTHOR], true);
+	EnableWindow(_rghwndMetas[MI_VERSION], true);
+		
 	SetWindowTextW(_rghwndMetas[MI_NAME], _pack.GetName().c_str());
 	SetWindowTextW(_rghwndMetas[MI_AUTHOR], _pack.GetAuthor().c_str());
 	SetWindowTextW(_rghwndMetas[MI_VERSION], _pack.GetVersion().c_str());
+	
+	// Now we'll load the "(not specified)" string and set the disabled appearance
+	// on the metadata labels if they're blank.
+	if (_pack.GetName().empty())
+	{
+		SetWindowTextW(_rghwndMetas[MI_NAME], _szNotSpecified);
+		EnableWindow(_rghwndMetas[MI_NAME], false);
+	}
+	if (_pack.GetAuthor().empty())
+	{
+		SetWindowTextW(_rghwndMetas[MI_AUTHOR], _szNotSpecified);
+		EnableWindow(_rghwndMetas[MI_AUTHOR], false);
+	}
+	if (_pack.GetVersion().empty())
+	{
+		SetWindowTextW(_rghwndMetas[MI_VERSION], _szNotSpecified);
+		EnableWindow(_rghwndMetas[MI_VERSION], false);
+	}
 
 	EnableWindow(_hwndApply, TRUE);
 
@@ -648,8 +734,13 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath)
 	_LoadReadme();
 
 	const auto &options = _pack.GetOptions();
-	for (const auto &opt : options)
+	if (0 == options.size())
 	{
+		_ToggleOptionsPlaceholder(true);
+	}
+	else for (const auto &opt : options)
+	{
+		_ToggleOptionsPlaceholder(false);
 		TVINSERTSTRUCTW tvis = { 0 };
 		TVITEMW &tvi = tvis.item;
 		tvi.mask = TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM | TVIF_TEXT;
@@ -690,6 +781,18 @@ void CMainWindow::_UnloadPack()
 	}
 
 	SetWindowTextW(_hwndText, L"");
+	if (_pTextPlaceholderWnd)
+	{
+		_pTextPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		InvalidateRect(_pTextPlaceholderWnd->GetHWND(), nullptr, TRUE);
+	}
+	if (_pOptionsPlaceholderWnd)
+	{
+		_pOptionsPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		InvalidateRect(_pOptionsPlaceholderWnd->GetHWND(), nullptr, TRUE);
+	}
+	_ToggleTextPlaceholder(true);
+	_ToggleOptionsPlaceholder(true);
 
 	EnableWindow(_hwndApply, FALSE);
 
@@ -704,6 +807,7 @@ void CMainWindow::_LoadReadme()
 	std::wstring readmePath = _pack.GetReadmePath();
 	if (!readmePath.empty())
 	{
+		_ToggleTextPlaceholder(false);
 		std::ifstream readmeFile(readmePath);
 		std::string buffer(
 			(std::istreambuf_iterator<char>(readmeFile)),
@@ -724,7 +828,42 @@ void CMainWindow::_LoadReadme()
 		SetWindowTextW(_hwndText, readmeText.c_str());
 		return;
 	}
+	else
+	{
+		_ToggleTextPlaceholder(true);
+	}
 	SetWindowTextW(_hwndText, L"");
+}
+
+#define TOGGLE_PLACEHOLDER(hwndPlaceholder, hwndOriginal, flag)                                                        \
+{                                                                                                                      \
+	if (!hwndPlaceholder)                                                                                              \
+		return;                                                                                                        \
+                                                                                                                       \
+	if (fStatus)                                                                                                       \
+	{                                                                                                                  \
+		ShowWindow(hwndPlaceholder, SW_SHOWNOACTIVATE);                                                                \
+		ShowWindow(hwndOriginal, SW_HIDE);                                                                             \
+		flag = true;                                                                                                   \
+	}                                                                                                                  \
+	else                                                                                                               \
+	{                                                                                                                  \
+		ShowWindow(hwndPlaceholder, SW_HIDE);                                                                          \
+		ShowWindow(hwndOriginal, SW_SHOWNOACTIVATE);                                                                   \
+		flag = false;                                                                                                  \
+	}                                                                                                                  \
+		                                                                                                               \
+	_UpdateLayout();                                                                                                   \
+}
+
+void CMainWindow::_ToggleTextPlaceholder(bool fStatus)
+{
+	TOGGLE_PLACEHOLDER(_hwndTextPlaceholder, _hwndText, _fShowingTextPlaceholder)
+}
+
+void CMainWindow::_ToggleOptionsPlaceholder(bool fStatus)
+{
+	TOGGLE_PLACEHOLDER(_hwndOptionsPlaceholder, _hwndOptions, _fShowingOptionsPlaceholder)
 }
 
 // static
@@ -779,6 +918,10 @@ void CMainWindow::_ApplyPackWorker()
 	HMENU hmenu = GetMenu(_hwnd);
 	HMENU hmenuSystem = GetSystemMenu(_hwnd, FALSE);
 
+	// Since the pack is being defined, the text pane will be used to write status
+	// updates. Even if the mod doesn't have a readme, the pane should become visible
+	// at this time.
+	_ToggleTextPlaceholder(false);
 	SetWindowTextW(_hwndText, L"");
 
 	EnableMenuItem(hmenu, IDM_FILEEXIT, MF_BYCOMMAND | MF_GRAYED | MF_DISABLED);

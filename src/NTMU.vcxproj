@@ -163,6 +163,7 @@
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="NTMU.cpp" />
     <ClCompile Include="Pack.cpp" />
+    <ClCompile Include="PlaceholderWindow.cpp" />
     <ClCompile Include="PreviewWindow.cpp" />
     <ClCompile Include="TrustedInstaller.cpp" />
     <ClCompile Include="Util.cpp" />
@@ -178,6 +179,7 @@
     <ClInclude Include="NTMU.h" />
     <ClInclude Include="Pack.h" />
     <ClInclude Include="PEResources.h" />
+    <ClInclude Include="PlaceholderWindow.h" />
     <ClInclude Include="PreviewWindow.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ThumbCache.h" />

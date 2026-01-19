@@ -1,5 +1,6 @@
 #pragma once
 #include "Window.h"
+#include "PlaceholderWindow.h"
 #include "PreviewWindow.h"
 #include "pack.h"
 
@@ -20,9 +21,13 @@ private:
 		MI_VERSION,
 		MI_COUNT
 	};
+	
+	WCHAR _szNotSpecified[MAX_PATH];
 
 	HWND _rghwndLabels[MI_COUNT];
 	HWND _rghwndMetas[MI_COUNT];
+	
+	static constexpr int c_numLayoutWindows = 5;
 
 	HWND _hwndProgress;
 	HWND _hwndApply;
@@ -30,6 +35,20 @@ private:
 	HWND _hwndText;
 	HWND _hwndPreview;
 	HWND _hwndOptions;
+	
+	static constexpr int c_numPlaceholders = 2;
+	
+	HWND _hwndTextPlaceholder;
+	HWND _hwndOptionsPlaceholder;
+	
+	struct
+	{
+		bool _fShowingTextPlaceholder : 1;
+		bool _fShowingOptionsPlaceholder : 1;
+	};
+	
+	CPlaceholderWindow *_pTextPlaceholderWnd;
+	CPlaceholderWindow *_pOptionsPlaceholderWnd;
 
 	enum OPTIONSIMAGEINDEX
 	{
@@ -74,6 +93,9 @@ private:
 	void _LoadPack(LPCWSTR pszPath);
 	void _UnloadPack();
 	void _LoadReadme();
+	
+	void _ToggleTextPlaceholder(bool fStatus);
+	void _ToggleOptionsPlaceholder(bool fStatus);
 
 	static void s_ApplyProgressCallback(void *lpParam, DWORD dwItemsProcessed, DWORD dwTotalItems);
 	void _ApplyPack();
