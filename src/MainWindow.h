@@ -1,5 +1,5 @@
 #pragma once
-#include "Window.h"
+#include "NTMUWindowBase.h"
 #include "PlaceholderWindow.h"
 #include "PreviewWindow.h"
 #include "pack.h"
@@ -8,10 +8,9 @@ static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 
 #define IDC_APPLY        1000
 
-class CMainWindow : public CWindow<CMainWindow, c_szMainWindowClass>
+class CMainWindow : public CNTMUWindowBase<CMainWindow, c_szMainWindowClass>
 {
 private:
-	UINT _dpi;
 	HACCEL _hAccel;
 
 	enum METAINDEX
@@ -63,11 +62,8 @@ private:
 	HIMAGELIST _himlOptions;
 
 	CPreviewWindow *_pPreviewWnd;
-
-	HFONT _hfMessage;
+	
 	HFONT _hfMonospace;
-	int _cxMsgFontChar;
-	int _cyMsgFontChar;
 
 	CPack _pack;
 	bool _fApplying;
@@ -76,21 +72,17 @@ private:
 
 	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
-	inline int _XDUToXPix(int x)
-	{
-		return MulDiv(x, _cxMsgFontChar, 4);
-	}
-
-	inline int _YDUToYPix(int y)
-	{
-		return MulDiv(y, _cyMsgFontChar, 8);
-	}
-
 	void _OnCreate();
-	void _UpdateFonts();
+	void _UpdateMetrics();
 	void _UpdateLayout();
+	
+	enum class LoadSource
+	{
+		Default,
+		CommandLine,
+	};
 
-	void _LoadPack(LPCWSTR pszPath);
+	void _LoadPack(LPCWSTR pszPath, LoadSource loadSource);
 	void _UnloadPack();
 	void _LoadReadme();
 	

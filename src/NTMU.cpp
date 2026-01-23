@@ -1,10 +1,17 @@
 #include "NTMU.h"
+
+#include <pathcch.h>
+#include <shlwapi.h>
+
 #include "MainWindow.h"
+#include "UnattendWindow.h"
 
 HINSTANCE g_hinst    = NULL;
 HWND      g_hwndMain = NULL;
 WCHAR     g_szTempDir[MAX_PATH] = { 0 };
 DWORD     g_dwOSBuild = 0;
+bool      g_fUnattend = false;
+WCHAR     g_szInitialPack[MAX_PATH] = { 0 };
 
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 
@@ -100,12 +107,117 @@ int WINAPI wWinMain(
 
 	g_hinst = hInstance;
 	
-	CMainWindow::RegisterWindowClass();
-	CMainWindow *pMainWnd = CMainWindow::CreateAndShow(nShowCmd);
-
-	g_hwndMain = pMainWnd->GetHWND();
-	HACCEL hMainAccel = pMainWnd->GetAccel();
+	// Parse command line arguments:
+	int nArgs = 0;
+	WCHAR **ppszArgs = nullptr;
+	if (L'\0' != lpCmdLine[0])
+	{
+		ppszArgs = CommandLineToArgvW(lpCmdLine, &nArgs);
+	}
+	auto freeArgs = wil::scope_exit([ppszArgs]
+	{
+		if (ppszArgs)
+			LocalFree(ppszArgs);
+	});
 	
+	for (int i = 0; i < nArgs; i++)
+	{
+		bool fOptionHandled = false;
+		static constexpr int c_optionLength = sizeof("/option:") - 1;
+		
+		auto SetInitialPack = [](const WCHAR *pszFrom) -> bool
+		{
+			WCHAR szBuffer[MAX_PATH];
+			StrCpyNW(szBuffer, pszFrom, ARRAYSIZE(szBuffer));
+			ExpandEnvironmentStringsW(szBuffer, g_szInitialPack, ARRAYSIZE(g_szInitialPack));
+			
+			const WCHAR *pszFileName;
+			if ((pszFileName = PathFindFileNameW(g_szInitialPack)) == g_szInitialPack
+				|| 0 != StrCmpIW(pszFileName, L"pack.ini"))
+			{
+				// In this case, we didn't specify a pack.ini path. In case the user specified
+				// or dragged the parent folder, we'll check for a direct child.
+				if (SUCCEEDED(PathCchAppend(g_szInitialPack, ARRAYSIZE(g_szInitialPack), L"pack.ini")))
+				{
+					if (!PathFileExistsW(g_szInitialPack))
+					{
+						// If this is the case, then we have a bad path.
+						return false;
+					}	
+				}
+			}
+			
+			return true;
+		};
+		
+		if (0 == StrCmpIW(ppszArgs[i], L"/unattend"))
+		{
+			g_fUnattend = true;
+			fOptionHandled = true;
+		}
+		else if (0 == StrCmpIW(ppszArgs[i], L"/pack"))
+		{
+			if (nArgs <= i + 1)
+			{
+				MainWndMsgBox(L"Not enough arguments for pack.", MB_ICONERROR);
+				continue;
+			}
+			
+			// If a bad initial path was specified here, then the GUI will show its own
+			// error message, so we don't say anything here.
+			SetInitialPack(ppszArgs[i + 1]);
+			
+			fOptionHandled = true;
+			i++;
+			continue;
+		}
+		else if (lstrlenW(ppszArgs[i]) >= c_optionLength
+			&& 0 == StrCmpNIW(ppszArgs[i], L"/option:", c_optionLength))
+		{
+			// These arguments are actually parsed by the pack loader as they are context
+			// specific, but they are skipped here to avoid showing the invalid argument
+			// message box.
+			fOptionHandled = true;
+		}
+		// The following should remain as the last case, as it handles the fallback for
+		// a direct path argument being provided without a prefix. This is conventional
+		// for the Windows shell and enables drag/drop.
+		else if (0 == i)
+		{
+			if (SetInitialPack(ppszArgs[i]))
+			{
+				fOptionHandled = true;
+			}
+			else
+			{
+				ZeroMemory(g_szInitialPack, sizeof(g_szInitialPack));
+			}
+		}
+		
+		if (!fOptionHandled)
+		{
+			WCHAR szBuffer[MAX_PATH];
+			StringCchPrintfW(szBuffer, ARRAYSIZE(szBuffer), L"Invalid argument \"%s\".", ppszArgs[i]);
+			MainWndMsgBox(szBuffer, MB_ICONERROR);
+		}
+	}
+	
+	CMainWindow::RegisterWindowClass();
+	CUnattendWindow::RegisterWindowClass();
+
+	HACCEL hMainAccel = NULL;
+	if (!g_fUnattend) // Full GUI mode:
+	{
+		CMainWindow *pMainWnd = CMainWindow::CreateAndShow(nShowCmd);
+		g_hwndMain = pMainWnd->GetHWND();
+		hMainAccel = pMainWnd->GetAccel();
+	}
+	else // Unattended mode:
+	{
+		CUnattendWindow *pUnattendWnd = CUnattendWindow::CreateAndShow(nShowCmd);
+		g_hwndMain = pUnattendWnd->GetHWND();
+	}
+
 	MSG msg;
 	while (GetMessageW(&msg, NULL, 0, 0))
 	{
@@ -115,5 +227,6 @@ int WINAPI wWinMain(
 			DispatchMessageW(&msg);
 		}
 	}
+	
 	return 0;
 }

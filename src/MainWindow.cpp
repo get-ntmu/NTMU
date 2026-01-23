@@ -6,6 +6,8 @@
 #include <codecvt>
 #include <pathcch.h>
 
+#include "Util.h"
+
 const WCHAR c_szGitHubURL[] = L"https://github.com/get-ntmu/NTMU";
 const WCHAR c_szHelpURL[] = L"https://github.com/get-ntmu/NTMU/wiki";
 const WCHAR c_szGetPacksURL[] = L"https://get-ntmu.github.io//#!/packs";
@@ -79,7 +81,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					if (GetOpenFileNameW(&ofn))
 					{
 						_UnloadPack();
-						_LoadPack(szFilePath);
+						_LoadPack(szFilePath, LoadSource::Default);
 					}
 					break;
 				}
@@ -187,7 +189,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 			// fallthrough
 		case WM_THEMECHANGED:
 		case WM_DPICHANGED:
-			_UpdateFonts();
+			_UpdateMetrics();
 			return 0;
 		case WM_SIZE:
 			_UpdateLayout();
@@ -419,47 +421,20 @@ void CMainWindow::_OnCreate()
 		_fShowingOptionsPlaceholder = true;
 	}
 
-	_UpdateFonts();
+	_UpdateMetrics();
+	
+	// If there is a default mod specified (i.e. the user opened NTMU by dragging a
+	// file onto the executable or specified the /pack command line argument), then
+	// open that pack.
+	if (NULL != g_szInitialPack[0])
+	{
+		_LoadPack(g_szInitialPack, LoadSource::CommandLine);
+	}
 }
 
-void CMainWindow::_UpdateFonts()
+void CMainWindow::_UpdateMetrics()
 {
-	_dpi = DPIHelpers::GetWindowDPI(_hwnd);
-
-	if (_hfMessage)
-	{
-		DeleteObject(_hfMessage);
-		_hfMessage = NULL;
-	}
-
-	NONCLIENTMETRICSW ncm = { sizeof(ncm) };
-	DPIHelpers::SystemParametersInfoForDPI(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, FALSE, _dpi);
-	_hfMessage = CreateFontIndirectW(&ncm.lfMessageFont);
-
-	HDC hdc = CreateCompatibleDC(NULL);
-	SelectObject(hdc, _hfMessage);
-	
-	TEXTMETRICW tm = { 0 };
-	GetTextMetricsW(hdc, &tm);
-
-	_cyMsgFontChar = tm.tmHeight;
-	if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH)
-	{
-		static const WCHAR wszAvgChars[] = L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-		SIZE size;
-		if (GetTextExtentPoint32W(hdc, wszAvgChars, ARRAYSIZE(wszAvgChars) - 1, &size))
-		{
-			// The above string is 26 * 2 characters. + 1 rounds the result.
-			_cxMsgFontChar = ((size.cx / 26) + 1) / 2;
-		}
-	}
-	else
-	{
-		_cxMsgFontChar = tm.tmAveCharWidth;
-	}
-
-	DeleteDC(hdc);
+	CNTMUWindowBase::_UpdateMetrics();
 
 #define UPDATEFONT(hwnd) SendMessageW(hwnd, WM_SETFONT, (WPARAM)_hfMessage, TRUE)
 	for (int i = 0; i < MI_COUNT; i++)
@@ -533,7 +508,7 @@ void CMainWindow::_UpdateFonts()
 	static const int s_rgClassicStates[OII_COUNT - 1]
 		= { DFCS_BUTTONCHECK, DFCS_BUTTONCHECK | DFCS_CHECKED, DFCS_BUTTONRADIO, DFCS_BUTTONRADIO | DFCS_CHECKED };
 
-	hdc = CreateCompatibleDC(NULL);
+	HDC hdc = CreateCompatibleDC(NULL);
 	if (hdc)
 	{
 		BITMAPINFO bi = { 0 };
@@ -680,10 +655,18 @@ void CMainWindow::_UpdateLayout()
 	EndDeferWindowPos(hdwp);
 }
 
-void CMainWindow::_LoadPack(LPCWSTR pszPath)
+void CMainWindow::_LoadPack(LPCWSTR pszPath, LoadSource loadSource)
 {
-	if (!_pack.Load(pszPath))
-		return;
+	if (LoadSource::Default == loadSource)
+	{
+		if (!_pack.Load(pszPath))
+			return;
+	}
+	else if (LoadSource::CommandLine == loadSource)
+	{
+		if (!_pack.LoadCommandLineDefault())
+			return;
+	}
 	
 	if (_pTextPlaceholderWnd)
 	{
@@ -959,18 +942,14 @@ void CMainWindow::_ApplyPackWorker()
 }
 
 CMainWindow::CMainWindow()
-	: _dpi(0)
-	, _hAccel(NULL)
+	: _hAccel(NULL)
 	, _rghwndLabels{ NULL }
 	, _rghwndMetas{ NULL }
 	, _hwndProgress(NULL)
 	, _hwndApply(NULL)
 	, _hwndText(NULL)
 	, _hwndOptions(NULL)
-	, _hfMessage(NULL)
 	, _hfMonospace(NULL)
-	, _cxMsgFontChar(0)
-	, _cyMsgFontChar(0)
 {
 }
 
@@ -992,34 +971,6 @@ HRESULT CMainWindow::RegisterWindowClass()
 	wc.hIcon = LoadIconW(g_hinst, MAKEINTRESOURCEW(IDI_NTMU));
 	wc.lpszMenuName = MAKEINTRESOURCEW(IDM_MAINMENU);
 	return CWindow::RegisterWindowClass(&wc);
-}
-
-static inline void ScreenCenteredRect(
-	int cx,
-	int cy,
-	DWORD dwStyle,
-	DWORD dwExStyle,
-	bool fMenu,
-	LPRECT lprc
-)
-{
-	UINT uDpi = DPIHelpers::GetSystemDPI();
-	RECT rc = {
-		0, 0,
-		MulDiv(cx, uDpi, 96),
-		MulDiv(cy, uDpi, 96)
-	};
-	DPIHelpers::AdjustWindowRectForDPI(&rc, dwStyle, dwExStyle, fMenu, uDpi);
-	cx = RECTWIDTH(rc);
-	cy = RECTHEIGHT(rc);
-	int scx = GetSystemMetrics(SM_CXSCREEN);
-	int scy = GetSystemMetrics(SM_CYSCREEN);
-	int x = (scx - cx) / 2;
-	int y = (scy - cy) / 2;
-	lprc->left = x;
-	lprc->top = y;
-	lprc->right = x + cx;
-	lprc->bottom = y + cy;
 }
 
 // static

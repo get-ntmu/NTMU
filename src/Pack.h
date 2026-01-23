@@ -86,12 +86,22 @@ private:
 	}
 
 	static bool _CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo);
+	
+	enum class LoadSource
+	{
+		Default = 0,
+		CommandLine = 1,
+	};
+	
+	bool _Load(LPCWSTR pszPath, LoadSource loadSource);
+	HRESULT _LoadCommandLineSettings();
 
 public:
 	static bool ParseOptionString(const std::wstring &s, std::vector<PackOptionDef> &opts);
 
 	void Reset();
-	bool Load(LPCWSTR pszPath);
+	bool Load(LPCWSTR pszPath) { return _Load(pszPath, LoadSource::Default); }
+	bool LoadCommandLineDefault() { return _Load(g_szInitialPack, LoadSource::CommandLine); }
 
 	typedef void (*PackApplyProgressCallback)(void *lpParam, DWORD dwItemsProcessed, DWORD dwTotalItems);
 
