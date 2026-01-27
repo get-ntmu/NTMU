@@ -26,8 +26,7 @@ LRESULT CUnattendWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 			}
 			return 0;
 		// Make the read-only text control use Window background
-		// instead of ButtonFace. This looks better with the options
-		// pane.
+		// instead of ButtonFace to match the main window's log output.
 		case WM_CTLCOLORSTATIC:
 			if ((HWND)lParam == _hwndText)
 				return (LRESULT)(COLOR_WINDOW + 1);
