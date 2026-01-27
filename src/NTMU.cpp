@@ -107,7 +107,12 @@ int WINAPI wWinMain(
 
 	g_hinst = hInstance;
 	
-	// Parse command line arguments:
+	// Parse command line arguments. Note that CommandLineToArgv has weird behavior
+	// when no parameter is specified, where it will return a valid with the path
+	// to the process's executable. This is the only case this is returned, and it
+	// makes it unreliable, so we only run it under the condition that any command
+	// line arguments are specified in the first place, hence the null check for
+	// the first character of lpCmdLine.
 	int nArgs = 0;
 	WCHAR **ppszArgs = nullptr;
 	if (L'\0' != lpCmdLine[0])
@@ -123,17 +128,17 @@ int WINAPI wWinMain(
 	for (int i = 0; i < nArgs; i++)
 	{
 		bool fOptionHandled = false;
-		static constexpr int c_optionLength = sizeof("/option:") - 1;
+		static constexpr int c_optionLength = sizeof("/option") - 1;
 		
 		auto SetInitialPack = [](const WCHAR *pszFrom) -> bool
 		{
 			WCHAR szBuffer[MAX_PATH];
-			StrCpyNW(szBuffer, pszFrom, ARRAYSIZE(szBuffer));
+			wcscpy_s(szBuffer, ARRAYSIZE(szBuffer), pszFrom);
 			ExpandEnvironmentStringsW(szBuffer, g_szInitialPack, ARRAYSIZE(g_szInitialPack));
 			
 			const WCHAR *pszFileName;
 			if ((pszFileName = PathFindFileNameW(g_szInitialPack)) == g_szInitialPack
-				|| 0 != StrCmpIW(pszFileName, L"pack.ini"))
+				|| 0 != _wcsicmp(pszFileName, L"pack.ini"))
 			{
 				// In this case, we didn't specify a pack.ini path. In case the user specified
 				// or dragged the parent folder, we'll check for a direct child.
@@ -150,12 +155,12 @@ int WINAPI wWinMain(
 			return true;
 		};
 		
-		if (0 == StrCmpIW(ppszArgs[i], L"/unattend"))
+		if (0 == _wcsicmp(ppszArgs[i], L"/unattend"))
 		{
 			g_fUnattend = true;
 			fOptionHandled = true;
 		}
-		else if (0 == StrCmpIW(ppszArgs[i], L"/pack"))
+		else if (0 == _wcsicmp(ppszArgs[i], L"/pack"))
 		{
 			if (nArgs <= i + 1)
 			{
@@ -172,7 +177,7 @@ int WINAPI wWinMain(
 			continue;
 		}
 		else if (lstrlenW(ppszArgs[i]) >= c_optionLength
-			&& 0 == StrCmpNIW(ppszArgs[i], L"/option:", c_optionLength))
+			&& 0 == _wcsnicmp(ppszArgs[i], L"/option", c_optionLength))
 		{
 			// These arguments are actually parsed by the pack loader as they are context
 			// specific, but they are skipped here to avoid showing the invalid argument
@@ -197,7 +202,7 @@ int WINAPI wWinMain(
 		if (!fOptionHandled)
 		{
 			WCHAR szBuffer[MAX_PATH];
-			StringCchPrintfW(szBuffer, ARRAYSIZE(szBuffer), L"Invalid argument \"%s\".", ppszArgs[i]);
+			swprintf_s(szBuffer, ARRAYSIZE(szBuffer), L"Invalid argument \"%s\".", ppszArgs[i]);
 			MainWndMsgBox(szBuffer, MB_ICONERROR);
 		}
 	}

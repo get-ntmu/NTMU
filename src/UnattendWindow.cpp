@@ -231,7 +231,7 @@ void CUnattendWindow::_ApplyPackWorker()
 	HMENU hmenuSystem = GetSystemMenu(_hwnd, FALSE);
 	
 	WCHAR szBuffer[1024] = {};
-	StringCchPrintfW(szBuffer, ARRAYSIZE(szBuffer),
+	swprintf_s(szBuffer, ARRAYSIZE(szBuffer),
 		L"Applying pack \"%s\"...", _pack.GetName().c_str());
 	SetWindowTextW(_hwndLabel, szBuffer);
 	
@@ -269,12 +269,12 @@ void CUnattendWindow::_ApplyPackWorker()
 		EnableWindow(_hwndClose, TRUE);
 		
 		ZeroMemory(szBuffer, ARRAYSIZE(szBuffer));
-		StringCchPrintfW(szBuffer, ARRAYSIZE(szBuffer),
+		swprintf_s(szBuffer, ARRAYSIZE(szBuffer),
 			L"Failed to apply pack \"%s\".", _pack.GetName().c_str());
 		SetWindowTextW(_hwndLabel, szBuffer);
 		
 		ZeroMemory(szBuffer, sizeof(szBuffer));
-		StringCchPrintfW(szBuffer, ARRAYSIZE(szBuffer), 
+		swprintf_s(szBuffer, ARRAYSIZE(szBuffer), 
 			L"Failed to apply pack \"%s\". See the log for more details.", _pack.GetName().c_str());
 		
 		MainWndMsgBox(szBuffer, MB_ICONERROR);
