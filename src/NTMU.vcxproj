@@ -166,6 +166,7 @@
     <ClCompile Include="PlaceholderWindow.cpp" />
     <ClCompile Include="PreviewWindow.cpp" />
     <ClCompile Include="TrustedInstaller.cpp" />
+    <ClCompile Include="UnattendWindow.cpp" />
     <ClCompile Include="Util.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -177,6 +178,7 @@
     <ClInclude Include="Logging.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="NTMU.h" />
+    <ClInclude Include="NTMUWindowBase.h" />
     <ClInclude Include="Pack.h" />
     <ClInclude Include="PEResources.h" />
     <ClInclude Include="PlaceholderWindow.h" />
@@ -184,6 +186,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ThumbCache.h" />
     <ClInclude Include="TrustedInstaller.h" />
+    <ClInclude Include="UnattendWindow.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>

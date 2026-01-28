@@ -350,7 +350,7 @@ void CPack::Reset()
 	_sections.clear();
 }
 
-bool CPack::Load(LPCWSTR pszPath)
+bool CPack::_Load(LPCWSTR pszPath, LoadSource loadSource)
 {
 	Reset();
 
@@ -623,8 +623,105 @@ bool CPack::Load(LPCWSTR pszPath)
 	{
 		MainWndMsgBox(L"No Pack section found", MB_ICONERROR);
 	}
+	
+	if (LoadSource::CommandLine == loadSource)
+	{
+		// If we're loading from the command line, then it's also possible that
+		// we have "/option" arguments that we want to parse. We will parse these
+		// options now.
+		LOG_IF_FAILED(_LoadCommandLineSettings());
+	}
 
 	return true;
+}
+
+HRESULT CPack::_LoadCommandLineSettings()
+{
+	WCHAR *pszCommandLine = GetCommandLineW();
+	WCHAR szMsgErrorBuffer[1024] = {};
+	
+	int nArgs = 0;
+	WCHAR **ppszArgs = CommandLineToArgvW(pszCommandLine, &nArgs);
+	auto freeArgs = wil::scope_exit([ppszArgs] { LocalFree(ppszArgs); });
+		
+	static constexpr int c_optionLength = sizeof("/option") - 1;
+	
+	for (int i = 0; i < nArgs; i++)
+	{
+		if (lstrlenW(ppszArgs[i]) >= c_optionLength
+			&& 0 == StrCmpNIW(ppszArgs[i], L"/option", c_optionLength))
+		{
+			std::wstring arg = ppszArgs[i];
+			
+			// We check if two characters beyond the /option parameter exist, counting
+			// the ":" token and the first character of the name. This allows for the
+			// error message suggesting that a name must be specified to be displayed
+			// if the user type "/option:".
+			// If that succeeds, then we check if the character at the option length
+			// (immediately after the "/option" string) is a colon.
+			if (arg.length() < c_optionLength + 2 ||
+				L':' != arg[c_optionLength])
+			{
+				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer), 
+					L"Improperly formed option argument \"%s\". It must specify a key and value "
+					L"in the format \"/option:key=value\".\r\n\r\n"
+					L"For example, \"/option:Files=1\".",
+					ppszArgs[i]);
+				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
+			}
+			
+			std::wstring statement = arg.substr(c_optionLength + 1);
+			auto equalPosition = statement.find(L'=');
+			if (std::wstring::npos == equalPosition)
+			{
+				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
+					L"Improperly formed option argument \"%s\". No value specified.",
+					ppszArgs[i]);
+				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
+			}
+			
+			std::wstring key = statement.substr(0, equalPosition);
+			
+			PackOption *pOption = _FindOption(key.c_str());
+			if (!pOption)
+			{
+				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
+					L"Improperly formed option argument \"%s\". Invalid option name \"%s\" specified.",
+					ppszArgs[i], key.c_str());
+				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
+			}
+			
+			std::wstring strValue = statement.substr(equalPosition + 1);
+			UINT uValue = 0;
+			if (!StringToUInt(strValue.c_str(), &uValue))
+			{
+				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
+					L"Improperly formed option argument \"%s\". Option value \"%s\" could not be parsed "
+					L"as a number.",
+					ppszArgs[i], strValue.c_str());
+				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
+			}
+			
+			// Make sure the requested value is valid:
+			if (!_ValidateOptionValue(*pOption, uValue))
+			{
+				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
+					L"Improperly formed option argument \"%s\". Invalid option value \"%s\" specified.",
+					ppszArgs[i], strValue.c_str());
+				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
+			}
+			
+			// Set the option value:
+			pOption->uValue = uValue;
+		}
+	}
+	
+	return S_OK;
 }
 
 bool CPack::Apply(void *lpParam, PackApplyProgressCallback pfnCallback)
