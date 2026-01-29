@@ -41,6 +41,38 @@ void ScreenCenteredRect(
 	lprc->bottom = y + cy;
 }
 
+void ParentCenteredRect(
+	HWND hwndParent,
+	int cx,
+	int cy,
+	DWORD dwStyle,
+	DWORD dwExStyle,
+	bool fMenu,
+	LPRECT lprc
+)
+{
+	UINT uDpi = DPIHelpers::GetWindowDPI(hwndParent);
+	RECT rc = {
+		0, 0,
+		MulDiv(cx, uDpi, 96),
+		MulDiv(cy, uDpi, 96)
+	};
+	DPIHelpers::AdjustWindowRectForDPI(&rc, dwStyle, dwExStyle, fMenu, uDpi);
+	cx = RECTWIDTH(rc);
+	cy = RECTHEIGHT(rc);
+
+	RECT rcParent;
+	GetWindowRect(hwndParent, &rcParent);
+	int pcx = RECTWIDTH(rcParent);
+	int pcy = RECTHEIGHT(rcParent);
+	int x = rcParent.left + (pcx - cx) / 2;
+	int y = rcParent.top  + (pcy - cy) / 2;
+	lprc->left = x;
+	lprc->top = y;
+	lprc->right = x + cx;
+	lprc->bottom = y + cx;
+}
+
 HRESULT WaitForProcess(LPCWSTR pszCommandLine, DWORD *lpdwExitCode)
 {
 	if (!lpdwExitCode)

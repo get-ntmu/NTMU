@@ -2,6 +2,7 @@
 #include "DPIHelpers.h"
 #include "Logging.h"
 #include "ThumbCache.h"
+#include "AboutDialog.h"
 #include <locale>
 #include <codecvt>
 #include <pathcch.h>
@@ -64,10 +65,10 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_COMMAND:
 			switch (LOWORD(wParam))
 			{
-			case IDC_APPLY:
+				case IDC_APPLY:
 					_ApplyPack();
 					break;
-			case IDM_FILEOPEN:
+				case IDM_FILEOPEN:
 				{
 					WCHAR szFilePath[MAX_PATH] = { 0 };
 					OPENFILENAMEW ofn = { 0 };
@@ -85,15 +86,15 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					}
 					break;
 				}
-			case IDM_FILEUNLOAD:
+				case IDM_FILEUNLOAD:
 				{
 					_UnloadPack();
 					break;
 				}
-			case IDM_FILEEXIT:
+				case IDM_FILEEXIT:
 					PostMessageW(hWnd, WM_CLOSE, 0, 0);
 					break;
-			case IDM_TOOLSCLEARICOCACHE:
+				case IDM_TOOLSCLEARICOCACHE:
 				{
 					WCHAR szExePath[MAX_PATH];
 					GetSystemDirectoryW(szExePath, MAX_PATH);
@@ -129,7 +130,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					}
 					// fall-thru
 				}
-			case IDM_TOOLSKILLEXPLORER:
+				case IDM_TOOLSKILLEXPLORER:
 				{
 					DWORD dwExplorerPID = 0;
 					HWND hwndShell = FindWindowW(L"Shell_TrayWnd", nullptr);
@@ -147,7 +148,7 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					CloseHandle(hProcess);
 					break;
 				}
-			case IDM_TOOLSSYSRESTORE:
+				case IDM_TOOLSSYSRESTORE:
 				{
 					WCHAR szExePath[MAX_PATH];
 					GetSystemDirectoryW(szExePath, MAX_PATH);
@@ -160,8 +161,8 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					);
 					break;
 				}
-			case IDM_HELPTOPICS:
-			case IDM_HELPGETPACKS:
+				case IDM_HELPTOPICS:
+				case IDM_HELPGETPACKS:
 				{
 					LPCWSTR pszURL = (LOWORD(wParam) == IDM_HELPTOPICS) ? c_szHelpURL : c_szGetPacksURL;
 					ShellExecuteW(
@@ -171,9 +172,14 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					);
 					break;
 				}
-			case IDM_HELPABOUT:
+				case IDM_HELPABOUT:
+				{
+					CAboutDialog *pAboutDialog = CAboutDialog::CreateAndShow(hWnd);
+#if 0
 					DialogBoxParamW(g_hinst, MAKEINTRESOURCEW(IDD_ABOUT), hWnd, s_AboutDlgProc, NULL);
+#endif
 					break;
+				}
 			}
 			return 0;
 			// Make the read-only text control use Window background

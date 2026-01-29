@@ -4,6 +4,7 @@
 #include <shlwapi.h>
 
 #include "MainWindow.h"
+#include "AboutDialog.h"
 #include "UnattendWindow.h"
 
 HINSTANCE g_hinst    = NULL;
@@ -208,6 +209,7 @@ int WINAPI wWinMain(
 	}
 	
 	CMainWindow::RegisterWindowClass();
+	CAboutDialog::RegisterWindowClass();
 	CUnattendWindow::RegisterWindowClass();
 
 	HACCEL hMainAccel = NULL;

@@ -155,6 +155,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AboutDialog.cpp" />
     <ClCompile Include="DPIHelpers.cpp" />
     <ClCompile Include="EnumPEResources.cpp" />
     <ClCompile Include="EnumRESResources.cpp" />
@@ -170,6 +171,7 @@
     <ClCompile Include="Util.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AboutDialog.h" />
     <ClInclude Include="DPIHelpers.h" />
     <ClInclude Include="EnumPEResources.h" />
     <ClInclude Include="EnumResources.h" />
