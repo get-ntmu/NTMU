@@ -21,6 +21,12 @@ protected:
 	{
 	}
 
+	~CNTMUWindowBase()
+	{
+		if (_hfMessage)
+			DeleteObject(_hfMessage);
+	}
+
 	inline int _XDUToXPix(int x)
 	{
 		return MulDiv(x, _cxMsgFontChar, 4);

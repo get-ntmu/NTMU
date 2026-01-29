@@ -955,8 +955,6 @@ CMainWindow::CMainWindow()
 
 CMainWindow::~CMainWindow()
 {	
-	if (_hfMessage)
-		DeleteObject(_hfMessage);
 	if (_hfMonospace)
 		DeleteObject(_hfMonospace);
 }
