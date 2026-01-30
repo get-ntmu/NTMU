@@ -1,14 +1,8 @@
 #include "PlaceholderWindow.h"
 
-HRESULT CPlaceholderWindowBase::CopyPlaceholderText(LPCWSTR pszPlaceholderText)
+HRESULT CPlaceholderWindowBase::SetPlaceholderText(LPCWSTR pszPlaceholderText)
 {
 	return StringCchCopyW(_szMessage, ARRAYSIZE(_szMessage), pszPlaceholderText);
-}
-
-HRESULT CPlaceholderWindowBase::LoadPlaceholderText(HINSTANCE hInstance, UINT uID)
-{
-	LoadStringW(hInstance, uID, _szMessage, MAX_PATH);
-	return S_OK;
 }
 
 HRESULT CPlaceholderWindowBase::DrawPlaceholder(HDC hdc, RECT rc)

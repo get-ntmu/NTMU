@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <limits>
+#include "translations/main_window.h"
 
 LRESULT CPreviewWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -159,7 +160,8 @@ LRESULT CPreviewWindow::_OnCreate()
 	if (Gdiplus::Ok != Gdiplus::GdiplusStartup(&_ulGdipToken, &si, nullptr))
 		return -1;
 
-	LoadPlaceholderText(g_hinst, IDS_NOPREVIEW);
+	const mm_main_window_translations_t *pTranslations = mm_get_main_window_translations();
+	SetPlaceholderText(pTranslations->no_preview);
 	return 0;
 }
 

@@ -18,7 +18,7 @@ extern WCHAR     g_szInitialPack[MAX_PATH];
 extern WCHAR     g_rgszUnattendOptions[256][MAX_PATH];
 extern const mm_app_translations_t *g_pAppTranslations;
 
-#define MainWndMsgBox(text, type) MessageBoxW(g_hwndMain, text, L"Windows NT Modding Utility", type)
+#define MainWndMsgBox(text, type) MessageBoxW(g_hwndMain, text, g_pAppTranslations->app_name, type)
 
 #define NTMU_ERROR(facility, code) (HRESULT)(((code) & 0x0000FFFF) | (facility << 16) | 0x80000000)
 

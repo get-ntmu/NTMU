@@ -30,11 +30,20 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 					break;
 				case IDM_FILEOPEN:
 				{
+					LPCWSTR pszFilter = _pTranslations->pack_file_filter;
+					WCHAR szFilter[MAX_PATH];
+					size_t cchFilter = wcslen(pszFilter);
+					for (size_t i = 0; i < cchFilter; i++)
+					{
+						szFilter[i] = (pszFilter[i] == L'#') ? L'\0' : pszFilter[i];
+					}
+					szFilter[cchFilter] = L'\0';
+
 					WCHAR szFilePath[MAX_PATH] = { 0 };
 					OPENFILENAMEW ofn = { 0 };
 					ofn.lStructSize = sizeof(ofn);
 					ofn.hwndOwner = hWnd;
-					ofn.lpstrFilter = L"INI Files (*.ini)\0*.ini\0All Files (*.*)\0*.*\0\0";
+					ofn.lpstrFilter = szFilter;
 					ofn.lpstrFile = szFilePath;
 					ofn.nMaxFile = MAX_PATH;
 					ofn.lpstrDefExt = L"ini";
@@ -295,12 +304,16 @@ void CMainWindow::_OnCreate()
 	_UnloadPack();
 	_hAccel = LoadAcceleratorsW(g_hinst, MAKEINTRESOURCEW(IDA_MAIN));
 
+	static LPCWSTR s_rgMetaNames[MI_COUNT] = {
+		_pTranslations->pack_name,
+		_pTranslations->pack_version,
+		_pTranslations->pack_author,
+	};
+
 	for (int i = 0; i < MI_COUNT; i++)
 	{
-		WCHAR szLabelText[MAX_PATH] = { 0 };
-		LoadStringW(g_hinst, IDS_PACKNAME + i, szLabelText, MAX_PATH);
 		_rghwndLabels[i] = CreateWindowExW(
-			NULL, L"STATIC", szLabelText, WS_CHILD | WS_VISIBLE,
+			NULL, L"STATIC", s_rgMetaNames[i], WS_CHILD | WS_VISIBLE,
 			0, 0, 0, 0,
 			_hwnd, NULL, NULL, NULL
 		);
@@ -310,8 +323,8 @@ void CMainWindow::_OnCreate()
 			_hwnd, NULL, NULL, NULL
 		);
 	}
-	
-	LoadStringW(g_hinst, IDS_NOTSPECIFIED, _szNotSpecified, ARRAYSIZE(_szNotSpecified));
+
+	wcscpy_s(_szNotSpecified, _pTranslations->not_specified);
 
 	_hwndProgress = CreateWindowExW(
 		NULL, PROGRESS_CLASSW, nullptr,
@@ -320,10 +333,8 @@ void CMainWindow::_OnCreate()
 	);
 	SendMessageW(_hwndProgress, PBM_SETSTEP, 1, 0);
 
-	WCHAR szApplyText[MAX_PATH] = { 0 };
-	LoadStringW(g_hinst, IDS_APPLY, szApplyText, MAX_PATH);
 	_hwndApply = CreateWindowExW(
-		NULL, WC_BUTTONW, szApplyText,
+		NULL, WC_BUTTONW, _pTranslations->apply_button,
 		WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
 		_hwnd, (HMENU)IDC_APPLY, NULL, NULL
 	);
@@ -370,7 +381,7 @@ void CMainWindow::_OnCreate()
 	if (_pTextPlaceholderWnd)
 	{
 		_hwndTextPlaceholder = _pTextPlaceholderWnd->GetHWND();
-		_pTextPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		_pTextPlaceholderWnd->SetPlaceholderText(_pTranslations->no_pack_loaded);
 		ShowWindow(_hwndText, SW_HIDE);
 		_fShowingTextPlaceholder = true;
 	}
@@ -379,7 +390,7 @@ void CMainWindow::_OnCreate()
 	if (_pOptionsPlaceholderWnd)
 	{
 		_hwndOptionsPlaceholder = _pOptionsPlaceholderWnd->GetHWND();
-		_pOptionsPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		_pOptionsPlaceholderWnd->SetPlaceholderText(_pTranslations->no_pack_loaded);
 		ShowWindow(_hwndOptions, SW_HIDE);
 		_fShowingOptionsPlaceholder = true;
 	}
@@ -633,12 +644,12 @@ void CMainWindow::_LoadPack(LPCWSTR pszPath, LoadSource loadSource)
 	
 	if (_pTextPlaceholderWnd)
 	{
-		_pTextPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOREADME);
+		_pTextPlaceholderWnd->SetPlaceholderText(_pTranslations->no_readme);
 		InvalidateRect(_pTextPlaceholderWnd->GetHWND(), nullptr, TRUE);
 	}
 	if (_pOptionsPlaceholderWnd)
 	{
-		_pOptionsPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOOPTIONS);
+		_pOptionsPlaceholderWnd->SetPlaceholderText(_pTranslations->no_options);
 		InvalidateRect(_pOptionsPlaceholderWnd->GetHWND(), nullptr, TRUE);
 	}
 
@@ -729,12 +740,12 @@ void CMainWindow::_UnloadPack()
 	SetWindowTextW(_hwndText, L"");
 	if (_pTextPlaceholderWnd)
 	{
-		_pTextPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		_pTextPlaceholderWnd->SetPlaceholderText(_pTranslations->no_pack_loaded);
 		InvalidateRect(_pTextPlaceholderWnd->GetHWND(), nullptr, TRUE);
 	}
 	if (_pOptionsPlaceholderWnd)
 	{
-		_pOptionsPlaceholderWnd->LoadPlaceholderText(g_hinst, IDS_NOPACKLOADED);
+		_pOptionsPlaceholderWnd->SetPlaceholderText(_pTranslations->no_pack_loaded);
 		InvalidateRect(_pOptionsPlaceholderWnd->GetHWND(), nullptr, TRUE);
 	}
 	_ToggleTextPlaceholder(true);
@@ -821,14 +832,7 @@ void CMainWindow::s_ApplyProgressCallback(void *lpParam, DWORD dwItemsProcessed,
 
 void CMainWindow::_ApplyPack()
 {
-	int result = MainWndMsgBox(
-		L"Applying a pack can make changes to system files and registry entries. "
-		L"If the pack you have selected does so, it is recommended that you:\n\n"
-		L"- Create a restore point (Tools -> Manage System Restore...)\n"
-		L"- Disable Windows Update (can be done through external tools)\n\n"
-		L"Do you wish to proceed?",
-		MB_ICONWARNING | MB_YESNO
-	);
+	int result = MainWndMsgBox(_pTranslations->pack_apply_warning, MB_ICONWARNING | MB_YESNO);
 	if (result == IDNO)
 		return;
 
@@ -882,13 +886,13 @@ void CMainWindow::_ApplyPackWorker()
 
 	if (_pack.Apply(this, s_ApplyProgressCallback))
 	{
-		MainWndMsgBox(L"The pack was applied successfully.", MB_ICONINFORMATION);
+		MainWndMsgBox(_pTranslations->pack_apply_successful, MB_ICONINFORMATION);
 		_LoadReadme();
 	}
 	else
 	{
 		SendMessageW(_hwndProgress, PBM_SETSTATE, PBST_ERROR, 0);
-		MainWndMsgBox(L"Failed to apply the selected pack. See the log for more details.", MB_ICONERROR);
+		MainWndMsgBox(_pTranslations->pack_apply_failed, MB_ICONERROR);
 	}
 
 	_fApplying = false;
@@ -905,7 +909,8 @@ void CMainWindow::_ApplyPackWorker()
 }
 
 CMainWindow::CMainWindow()
-	: _hAccel(NULL)
+	: _pTranslations(mm_get_main_window_translations())
+	, _hAccel(NULL)
 	, _rghwndLabels{ NULL }
 	, _rghwndMetas{ NULL }
 	, _hwndProgress(NULL)
@@ -945,7 +950,7 @@ CMainWindow *CMainWindow::CreateAndShow(int nCmdShow)
 
 	CMainWindow *pWindow = Create(
 		c_dwMainWindowExStyle,
-		L"Windows NT Modding Utility",
+		g_pAppTranslations->app_name,
 		c_dwMainWindowStyle,
 		rc.left, rc.top,
 		RECTWIDTH(rc), RECTHEIGHT(rc),

@@ -20,12 +20,7 @@ public:
 	/**
 	 * Copy the placeholder text from another string.
 	 */
-	HRESULT CopyPlaceholderText(LPCWSTR pszPlaceholderText);
-
-	/**
-	 * Load the placeholder text from a string resource.
-	 */
-	HRESULT LoadPlaceholderText(HINSTANCE hInstance, UINT uID);
+	HRESULT SetPlaceholderText(LPCWSTR pszPlaceholderText);
 
 	/**
 	 * Draw the placeholder contents into a HDC.

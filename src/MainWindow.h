@@ -2,7 +2,8 @@
 #include "NTMUWindowBase.h"
 #include "PlaceholderWindow.h"
 #include "PreviewWindow.h"
-#include "pack.h"
+#include "Pack.h"
+#include "translations/main_window.h"
 
 static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 
@@ -11,6 +12,7 @@ static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 class CMainWindow : public CNTMUWindowBase<CMainWindow, c_szMainWindowClass>
 {
 private:
+	const mm_main_window_translations_t *_pTranslations;
 	HACCEL _hAccel;
 
 	enum METAINDEX
