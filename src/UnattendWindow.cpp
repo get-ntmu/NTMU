@@ -182,7 +182,7 @@ bool CUnattendWindow::_LoadPack()
 {
 	if (!_pack.LoadCommandLineDefault())
 	{
-		MainWndMsgBox(_pTranslations->pack_load_failed MB_ICONERROR | MB_OK);
+		MainWndMsgBox(_pTranslations->pack_load_failed, MB_ICONERROR | MB_OK);
 		return false;
 	}
 	return true;

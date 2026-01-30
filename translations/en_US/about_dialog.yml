@@ -1,3 +1,4 @@
+dialog_title: About Windows NT Modding Utility
 app_version: Version %major:u%.%minor:u%.%revision:u%
 app_info:
   NTMU is a system file modification tool for Windows. It is free and open-source

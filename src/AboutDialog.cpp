@@ -13,6 +13,7 @@ CAboutDialog::CAboutDialog()
 	, _hIcon(NULL)
 	, _cxIcon(0)
 	, _cyIcon(0)
+	, _pTranslations(mm_get_about_dialog_translations())
 {
 
 }
@@ -72,6 +73,8 @@ LRESULT CAboutDialog::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 void CAboutDialog::_OnCreate()
 {
+	SetWindowTextW(_hwnd, _pTranslations->dialog_title);
+
 	_hwndIcon = CreateWindowExW(
 		0, L"STATIC", nullptr,
 		SS_ICON | WS_CHILD | WS_VISIBLE,
@@ -80,17 +83,16 @@ void CAboutDialog::_OnCreate()
 	);
 
 	_hwndAppName = CreateWindowExW(
-		0, L"STATIC", L"Windows NT Modding Utility",
+		0, L"STATIC", g_pAppTranslations->app_name,
 		WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0,
 		_hwnd, NULL, g_hinst, nullptr
 	);
 
-	WCHAR szVersion[256];
-	swprintf_s(szVersion, L"Version %u.%u.%u", VER_MAJOR, VER_MINOR, VER_REVISION);
+	msgmap::wstring spszVersionText = _pTranslations->app_version(VER_MAJOR, VER_MINOR, VER_REVISION);
 
 	_hwndAppVersion = CreateWindowExW(
-		0, L"STATIC", szVersion,
+		0, L"STATIC", spszVersionText,
 		WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0,
 		_hwnd, NULL, g_hinst, nullptr
@@ -98,15 +100,18 @@ void CAboutDialog::_OnCreate()
 
 	_hwndAppInfo = CreateWindowExW(
 		0, L"STATIC", 
-		L"NTMU is a system file modification tool for Windows. It is free and open-source software, licensed under the GNU General Public License (GPL) 3.0.",
+		_pTranslations->app_info,
 		WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0,
 		_hwnd, NULL, g_hinst, nullptr
 	);
 
+	WCHAR szLinkText[MAX_PATH];
+	swprintf_s(szLinkText, L"<A>%s</A>", _pTranslations->github_link);
+
 	_hwndGitHubLink = CreateWindowExW(
 		0, L"SysLink",
-		L"<A>GitHub repository</A>",
+		szLinkText,
 		WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0,
 		_hwnd, (HMENU)IDC_GITHUB, g_hinst, nullptr
@@ -114,7 +119,7 @@ void CAboutDialog::_OnCreate()
 
 	_hwndOKButton = CreateWindowExW(
 		0, L"BUTTON",
-		L"OK",
+		_pTranslations->ok_button,
 		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_DEFPUSHBUTTON,
 		0, 0, 0, 0,
 		_hwnd, (HMENU)IDOK, g_hinst, nullptr
@@ -256,7 +261,7 @@ CAboutDialog *CAboutDialog::CreateAndShow(HWND hwndParent)
 {
 	CAboutDialog *pDialog = Create(
 		WS_EX_DLGMODALFRAME,
-		L"About Windows NT Modding Utility",
+		nullptr,
 		WS_CAPTION | WS_SYSMENU,
 		0, 0, 0, 0,
 		hwndParent,

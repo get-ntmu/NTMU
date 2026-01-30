@@ -16,6 +16,7 @@
 
 typedef struct _mm_about_dialog_translations_t
 {
+    const wchar_t *dialog_title;
     const wchar_t *app_info;
     const wchar_t *github_link;
     const wchar_t *ok_button;
@@ -34,6 +35,7 @@ static wchar_t *mm_about_dialog_translations_app_version_en_US(unsigned int majo
 }
 
 static const mm_about_dialog_translations_t mm_about_dialog_translations_en_US = {
+    L"About Windows NT Modding Utility", // dialog_title
     L"NTMU is a system file modification tool for Windows. It is free and open-source software, licensed under the GNU General Public License (GPL) 3.0.", // app_info
     L"GitHub repository", // github_link
     L"OK", // ok_button

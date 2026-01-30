@@ -1,5 +1,6 @@
 #pragma once
 #include "NTMUWindowBase.h"
+#include "translations/about_dialog.h"
 
 static constexpr WCHAR c_szAboutDialogClass[] = L"NTMU_AboutDialog";
 
@@ -21,6 +22,8 @@ private:
 
 	int _cxIcon;
 	int _cyIcon;
+
+	const mm_about_dialog_translations_t *_pTranslations;
 
 	static constexpr int c_numLayoutWindows = 6;
 
