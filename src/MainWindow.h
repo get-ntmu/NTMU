@@ -13,6 +13,7 @@ class CMainWindow : public CNTMUWindowBase<CMainWindow, c_szMainWindowClass>
 {
 private:
 	const mm_main_window_translations_t *_pTranslations;
+
 	HACCEL _hAccel;
 
 	enum METAINDEX
