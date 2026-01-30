@@ -1,6 +1,7 @@
 #pragma once
 #include "NTMUWindowBase.h"
 #include "Pack.h"
+#include "translations/unattend_window.h"
 
 static constexpr WCHAR c_szUnattendWindowClass[] = L"NTMU_UnattendWindow";
 
@@ -31,6 +32,8 @@ private:
 	HWND _hwndClose;
 	
 	static constexpr int c_numLayoutWindows = 4;
+
+	const mm_unattend_window_translations_t *_pTranslations;
 	
 	HFONT _hfMonospace;
 

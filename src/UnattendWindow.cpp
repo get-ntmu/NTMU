@@ -55,7 +55,7 @@ DWP:
 void CUnattendWindow::_OnCreate()
 {
 	_hwndLabel = CreateWindowExW(
-		NULL, L"STATIC", L"Loading pack...", WS_CHILD | WS_VISIBLE,
+		NULL, L"STATIC", _pTranslations->loading_pack, WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0,
 		_hwnd, NULL, NULL, NULL
 	);
@@ -67,10 +67,8 @@ void CUnattendWindow::_OnCreate()
 	);
 	SendMessageW(_hwndProgress, PBM_SETSTEP, 1, 0);
 
-	WCHAR szCloseText[MAX_PATH] = { 0 };
-	LoadStringW(g_hinst, IDS_CLOSE, szCloseText, MAX_PATH);
 	_hwndClose = CreateWindowExW(
-		NULL, WC_BUTTONW, szCloseText,
+		NULL, WC_BUTTONW, _pTranslations->close_button,
 		WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
 		_hwnd, (HMENU)IDC_CLOSE, NULL, NULL
 	);
@@ -184,7 +182,7 @@ bool CUnattendWindow::_LoadPack()
 {
 	if (!_pack.LoadCommandLineDefault())
 	{
-		MainWndMsgBox(L"Failed to load pack.", MB_ICONERROR | MB_OK);
+		MainWndMsgBox(_pTranslations->pack_load_failed MB_ICONERROR | MB_OK);
 		return false;
 	}
 	return true;
@@ -229,11 +227,9 @@ void CUnattendWindow::s_LogCallback(void *lpParam, LPCWSTR pszText)
 void CUnattendWindow::_ApplyPackWorker()
 {
 	HMENU hmenuSystem = GetSystemMenu(_hwnd, FALSE);
-	
-	WCHAR szBuffer[1024] = {};
-	swprintf_s(szBuffer, ARRAYSIZE(szBuffer),
-		L"Applying pack \"%s\"...", _pack.GetName().c_str());
-	SetWindowTextW(_hwndLabel, szBuffer);
+
+	msgmap::wstring spszLabelText = _pTranslations->applying_pack(_pack.GetName().c_str());
+	SetWindowTextW(_hwndLabel, spszLabelText);
 	
 	SetWindowTextW(_hwndText, L"");
 	
@@ -267,17 +263,12 @@ void CUnattendWindow::_ApplyPackWorker()
 		
 		EnableMenuItem(hmenuSystem, SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
 		EnableWindow(_hwndClose, TRUE);
+
+		msgmap::wstring spszLabelText = _pTranslations->pack_apply_failed(_pack.GetName().c_str());
+		SetWindowTextW(_hwndLabel, spszLabelText);
 		
-		ZeroMemory(szBuffer, ARRAYSIZE(szBuffer));
-		swprintf_s(szBuffer, ARRAYSIZE(szBuffer),
-			L"Failed to apply pack \"%s\".", _pack.GetName().c_str());
-		SetWindowTextW(_hwndLabel, szBuffer);
-		
-		ZeroMemory(szBuffer, sizeof(szBuffer));
-		swprintf_s(szBuffer, ARRAYSIZE(szBuffer), 
-			L"Failed to apply pack \"%s\". See the log for more details.", _pack.GetName().c_str());
-		
-		MainWndMsgBox(szBuffer, MB_ICONERROR);
+		msgmap::wstring spszMessage = _pTranslations->pack_apply_failed_message(_pack.GetName().c_str());
+		MainWndMsgBox(spszMessage, MB_ICONERROR);
 	}
 	else
 	{
@@ -306,6 +297,7 @@ CUnattendWindow::CUnattendWindow()
 	, _hwndProgress(NULL)
 	, _hwndText(NULL)
 	, _hwndClose(NULL)
+	, _pTranslations(mm_get_unattend_window_translations())
 	, _hfMonospace(NULL)
 	, _fApplying(false)
 {
@@ -339,7 +331,7 @@ CUnattendWindow *CUnattendWindow::CreateAndShow(int nCmdShow)
 
 	CUnattendWindow *pWindow = Create(
 		c_dwMainWindowExStyle,
-		L"Windows NT Modding Utility",
+		g_pAppTranslations->app_name,
 		c_dwMainWindowStyle,
 		rc.left, rc.top,
 		RECTWIDTH(rc), RECTHEIGHT(rc),
