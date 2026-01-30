@@ -1,0 +1,4 @@
+open_failed: Failed to open file '%file:s%' for reading.
+unclosed_section_header: Unclosed section header on line %line:d%.
+value_outside_section: Value outside of section on line %line:d%.
+missing_equals: Missing '=' on line %line:d%.

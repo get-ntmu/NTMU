@@ -1,0 +1,36 @@
+menu_file: "&File"
+menu_file_open: "&Open Pack...\tCtrl+O"
+menu_file_unload: "&Unload Pack...\tCtrl+W"
+menu_file_exit: "E&xit\tAlt+F4"
+
+menu_tools: "&Tools"
+menu_tools_restart_explorer: "&Restart Explorer"
+menu_tools_clear_icon_cache: "&Clear Icon/Thumbnail Cache"
+menu_tools_system_restore: "Manage &System Restore..."
+
+menu_help: "&Help"
+menu_help_topics: "&Help Topics..."
+menu_help_get_packs: "&Get Packs..."
+menu_help_about: "&About Windows NT Modding Utility..."
+
+pack_name: "Name:"
+pack_author: "Author:"
+pack_version: "Version:"
+apply_button: "&Apply"
+no_preview: No preview
+no_readme: This pack does not have a README
+no_options: This pack does not have any options
+no_pack_loaded: No pack loaded
+not_specified: (Not specified)
+# Any hashtag character here will be replaced with a null character at runtime.
+pack_file_filter: INI Files (*.ini)#*.ini#All Files (*.*)#*.*##
+pack_apply_warning:
+  "Applying a pack can make changes to system files and registry entries. If
+  the pack you have selected does so, it is recommended that you:\n
+  
+  - Create a restore point (Tools -> Manage System Restore...)\n\
+  - Disable Windows Update (can be done through external tools)\n
+  
+  Do you wish to proceed?"
+pack_apply_successful: The pack was applied successfully.
+pack_apply_failed: Failed to apply the selected pack. See the log for more details.

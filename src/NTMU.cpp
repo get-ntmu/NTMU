@@ -13,6 +13,7 @@ WCHAR     g_szTempDir[MAX_PATH] = { 0 };
 DWORD     g_dwOSBuild = 0;
 bool      g_fUnattend = false;
 WCHAR     g_szInitialPack[MAX_PATH] = { 0 };
+const mm_app_translations_t *g_pAppTranslations = nullptr;
 
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 
@@ -57,39 +58,23 @@ int WINAPI wWinMain(
 	_In_     int       nShowCmd
 )
 {
-#ifndef _WIN64
-	BOOL fIsWow64;
-	if (IsWow64Process(GetCurrentProcess(), &fIsWow64) && fIsWow64)
-	{
-		MainWndMsgBox(
-			L"You are running the 32-bit version of NTMU on a "
-			L"64-bit OS. Please download the 64-bit version.",
-			MB_ICONERROR
-		);
-		return -1;
-	}
-#endif
-
 #ifdef _DEBUG
 	wil::SetResultLoggingCallback(WilLogCallback);
 #endif
 
+	mm_set_preferred_langs_from_system();
+
+	g_pAppTranslations = mm_get_app_translations();
+
 	RTL_OSVERSIONINFOW osvi = { sizeof(osvi) };
-	if (!NT_SUCCESS(RtlGetVersion(&osvi)))
-	{
-		MainWndMsgBox(
-			L"Failed to obtain OS version information.",
-			MB_ICONERROR
-		);
-		return -1;
-	}
+	RtlGetVersion(&osvi);
 
 	g_dwOSBuild = osvi.dwBuildNumber;
 
 	if (!EnablePrivilege(SE_DEBUG_NAME) || !EnablePrivilege(SE_IMPERSONATE_NAME))
 	{
 		MainWndMsgBox(
-			L"Failed to acquire the necessary privileges.",
+			g_pAppTranslations->privilege_escalation_failed,
 			MB_ICONERROR
 		);
 		return -1;
@@ -100,7 +85,7 @@ int WINAPI wWinMain(
 	if (dwAttr == INVALID_FILE_ATTRIBUTES && !CreateDirectoryW(g_szTempDir, nullptr))
 	{
 		MainWndMsgBox(
-			L"Failed to create the temporary directory.",
+			g_pAppTranslations->temp_dir_creation_failed,
 			MB_ICONERROR
 		);
 		return -1;
@@ -165,7 +150,7 @@ int WINAPI wWinMain(
 		{
 			if (nArgs <= i + 1)
 			{
-				MainWndMsgBox(L"Not enough arguments for pack.", MB_ICONERROR);
+				MainWndMsgBox(g_pAppTranslations->bad_pack_arg, MB_ICONERROR);
 				continue;
 			}
 			
@@ -202,9 +187,8 @@ int WINAPI wWinMain(
 		
 		if (!fOptionHandled)
 		{
-			WCHAR szBuffer[MAX_PATH];
-			swprintf_s(szBuffer, ARRAYSIZE(szBuffer), L"Invalid argument \"%s\".", ppszArgs[i]);
-			MainWndMsgBox(szBuffer, MB_ICONERROR);
+			msgmap::wstring spszError = g_pAppTranslations->bad_argument(ppszArgs[i]);
+			MainWndMsgBox(spszError, MB_ICONERROR);
 		}
 	}
 	

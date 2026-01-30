@@ -1,0 +1,37 @@
+non_relative_path: Encountered non-relative path '%path:s%'
+quoted_path: Encountered path with quotes '%path:s%'
+upwards_path: Encountered path with upwards directory traversal '%path:s%'
+nonexistent_file: File at path '%path:s%' doesn't exist.
+file_path_is_dir: Path '%path:s%' points to a directory, not a file.
+expand_environ_failed: Failed to expand environment variables for path '%path:s%'
+extern_relative_path: Relative path '%path:s%' for external file encountered
+invalid_option_value: Invalid value %value:u% for option '%option:s%'.
+value_not_int: "'%value:s%' is not an integer"
+negative_int_value: Negative integer value %value:d%
+garbage_after_int: Garbage characters after number string '%str:s%'
+option_no_equal: Missing '=' in option string '%str:s%'
+os_too_old:
+  This pack was designed for at minimum Windows build %pack_build:u%. You are
+  running build %user_build:u%.
+os_too_new:
+  This pack was designed for at maximum Windows build %pack_build:u%. You are
+  running build %user_build:u%.
+duplicate_option: Duplicate option '%option:s%'
+unexpected_section: Unexpected section with name '%name:s%'
+no_pack_section: No 'Pack' section found
+option_arg_no_key:
+  "Improperly formed option argument '%arg:s%'. It must specify a key and value
+  in the format '/option:key=value'.\n
+  
+  For example, '/option:Files=1'."
+option_arg_no_value: Improperly formed option argument '%arg:s%'. No value specified.
+option_arg_bad_name:
+  "Improperly formed option argument '%arg:s%'. Invalid option name '%name:s%'
+  specified."
+option_arg_non_number_value:
+  "Improperly formed option argument '%arg:s%'. Option value '%value:s%' could
+  not be parsed as a number."
+option_arg_bad_value:
+  "Improperly formed option argument '%arg:s%'. Invalid option value %value:s%
+  specified."
+bad_bool_value: Invalid boolean value %value:u%.

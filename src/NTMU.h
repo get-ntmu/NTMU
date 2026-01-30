@@ -7,6 +7,7 @@
 #include "wil/com.h"
 #include "wil/resource.h"
 #include "Resource.h"
+#include "translations/app.h"
 
 extern HINSTANCE g_hinst;
 extern HWND      g_hwndMain;
@@ -15,6 +16,7 @@ extern DWORD     g_dwOSBuild;
 extern bool      g_fUnattend;
 extern WCHAR     g_szInitialPack[MAX_PATH];
 extern WCHAR     g_rgszUnattendOptions[256][MAX_PATH];
+extern const mm_app_translations_t *g_pAppTranslations;
 
 #define MainWndMsgBox(text, type) MessageBoxW(g_hwndMain, text, L"Windows NT Modding Utility", type)
 

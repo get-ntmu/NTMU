@@ -1,0 +1,3 @@
+[submodule "msgmap"]
+	path = msgmap
+	url = https://github.com/aubymori/msgmap

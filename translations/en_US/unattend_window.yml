@@ -1,0 +1,6 @@
+loading_pack: Loading pack...
+pack_load_failed: Failed to load pack.
+applying_pack: Applying pack "%pack_name:s%"...
+pack_apply_failed: Failed to apply pack "%pack_name:s%".
+pack_apply_failed_message: Failed to apply pack "%pack_name:s%". See the log for details.
+close_button: "&Close"

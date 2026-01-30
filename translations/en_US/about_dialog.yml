@@ -1,0 +1,6 @@
+app_version: Version %major:u%.%minor:u%.%revision:u%
+app_info:
+  NTMU is a system file modification tool for Windows. It is free and open-source
+  software, licensed under the GNU General Public License (GPL) 3.0.
+github_link: GitHub repository
+ok_button: OK
