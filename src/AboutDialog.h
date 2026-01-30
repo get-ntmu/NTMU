@@ -3,6 +3,8 @@
 
 static constexpr WCHAR c_szAboutDialogClass[] = L"NTMU_AboutDialog";
 
+#define IDC_GITHUB             1000
+
 class CAboutDialog : public CNTMUWindowBase<CAboutDialog, c_szAboutDialogClass>
 {
 private:
@@ -13,19 +15,22 @@ private:
 	HWND _hwndGitHubLink;
 	HWND _hwndOKButton;
 
+	HWND _hwndParent;
+
 	HICON _hIcon;
 
 	int _cxIcon;
 	int _cyIcon;
 
-	static constexpr int c_numLayoutWindows = 7;
+	static constexpr int c_numLayoutWindows = 6;
 
 	static constexpr int c_duMargin       =   8;
 	static constexpr int c_duLabelWidth   = 155;
 	static constexpr int c_duLabelHeight  =   8;
-	static constexpr int c_duLabelMargin  =   4;
+	static constexpr int c_duLabelMargin  =   2;
 	static constexpr int c_duButtonWidth  =  50;
 	static constexpr int c_duButtonHeight =  14;
+	static constexpr int c_duButtonMargin =  6;
 
 	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 

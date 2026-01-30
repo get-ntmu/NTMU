@@ -1,6 +1,8 @@
 #include "AboutDialog.h"
 #include "Util.h"
 
+const WCHAR c_szGitHubURL[] = L"https://github.com/get-ntmu/NTMU";
+
 CAboutDialog::CAboutDialog()
 	: _hwndIcon(NULL)
 	, _hwndAppName(NULL)
@@ -28,6 +30,27 @@ LRESULT CAboutDialog::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 		case WM_CREATE:
 			_OnCreate();
 			return 0;
+		case WM_COMMAND:
+			if (LOWORD(wParam) == IDOK)
+				SendMessageW(hWnd, WM_CLOSE, 0, 0);
+			return 0;
+		// Mimic dialog IDCANCEL behavior
+		case WM_KEYDOWN:
+			if (wParam == VK_ESCAPE)
+				SendMessageW(hWnd, WM_CLOSE, 0, 0);
+			return 0;
+		case WM_NOTIFY:
+			if (IDC_GITHUB == wParam
+			&& NM_CLICK == ((LPNMHDR)lParam)->code)
+			{
+				ShellExecuteW(
+					hWnd, L"open",
+					c_szGitHubURL,
+					NULL, NULL,
+					SW_SHOWNORMAL
+				);
+			}
+			return 0;
 		case WM_SETTINGCHANGE:
 			if (wParam != SPI_SETNONCLIENTMETRICS)
 				return 0;
@@ -35,6 +58,12 @@ LRESULT CAboutDialog::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 		case WM_THEMECHANGED:
 		case WM_DPICHANGED:
 			_UpdateMetrics();
+			return 0;
+		// Re-enable parent window and bring it to front (for some reason it
+		// messes up the z-order by default...)
+		case WM_DESTROY:
+			EnableWindow(g_hwndMain, TRUE);
+			SetWindowPos(g_hwndMain, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 			return 0;
 		default:
 			return DefWindowProcW(hWnd, uMsg, wParam, lParam);
@@ -75,11 +104,28 @@ void CAboutDialog::_OnCreate()
 		_hwnd, NULL, g_hinst, nullptr
 	);
 
+	_hwndGitHubLink = CreateWindowExW(
+		0, L"SysLink",
+		L"<A>GitHub repository</A>",
+		WS_CHILD | WS_VISIBLE,
+		0, 0, 0, 0,
+		_hwnd, (HMENU)IDC_GITHUB, g_hinst, nullptr
+	);
+
+	_hwndOKButton = CreateWindowExW(
+		0, L"BUTTON",
+		L"OK",
+		WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_DEFPUSHBUTTON,
+		0, 0, 0, 0,
+		_hwnd, (HMENU)IDOK, g_hinst, nullptr
+	);
+
 	_UpdateMetrics();
 	RECT rc;
 	GetClientRect(_hwnd, &rc);
 	ParentCenteredRect(
-		GetParent(_hwnd),
+		g_hwndMain, // GetParent returns NULL during WM_CREATE, and we know this
+		            // will always be the parent.
 		RECTWIDTH(rc),
 		RECTHEIGHT(rc),
 		WS_CAPTION | WS_SYSMENU,
@@ -103,6 +149,8 @@ void CAboutDialog::_UpdateMetrics()
 	UPDATEFONT(_hwndAppName);
 	UPDATEFONT(_hwndAppVersion);
 	UPDATEFONT(_hwndAppInfo);
+	UPDATEFONT(_hwndGitHubLink);
+	UPDATEFONT(_hwndOKButton);
 #undef UPDATEFONT
 
 	_cxIcon = DPIHelpers::GetSystemMetricsForDPI(SM_CXICON, _dpi);
@@ -118,23 +166,23 @@ void CAboutDialog::_UpdateMetrics()
 
 void CAboutDialog::_UpdateLayout()
 {
-	HDWP hdwp = BeginDeferWindowPos(c_numLayoutWindows);
-
-	const int c_duDialogWidth  = (c_duMargin * 2) + c_duLabelWidth;
-	const int c_duDialogHeight = (c_duLabelHeight * 6) + (c_duMargin * 3) + (c_duLabelMargin * 2);
+	constexpr int c_duDialogWidth  = (c_duMargin * 3) + c_duLabelWidth;
+	constexpr int c_duDialogHeight = (c_duLabelHeight * 6) + (c_duMargin * 3) + (c_duLabelMargin * 2);
 	RECT rc = {
 		0, 0,
 		_cxIcon + _XDUToXPix(c_duDialogWidth),
 		_cyIcon + _YDUToYPix(c_duDialogHeight)
 	};
 	DPIHelpers::AdjustWindowRectForDPI(&rc, WS_CAPTION | WS_SYSMENU, 0, FALSE, _dpi);
-	hdwp = DeferWindowPos(
-		hdwp, _hwnd, NULL,
+	SetWindowPos(
+		_hwnd, NULL,
 		0, 0,
 		RECTWIDTH(rc),
 		RECTHEIGHT(rc),
 		SWP_NOMOVE | SWP_NOZORDER
 	);
+
+	HDWP hdwp = BeginDeferWindowPos(c_numLayoutWindows);
 
 	hdwp = DeferWindowPos(
 		hdwp, _hwndIcon, NULL,
@@ -161,10 +209,32 @@ void CAboutDialog::_UpdateLayout()
 		SWP_NOZORDER
 	);
 
+	const int wideLabelX = _XDUToXPix(c_duMargin);
+	const int wideLabelWidth = _cxIcon + _XDUToXPix(c_duMargin + c_duLabelWidth);
+
 	hdwp = DeferWindowPos(
 		hdwp, _hwndAppInfo, NULL,
-		_XDUToXPix(c_duMargin), _cyIcon + _YDUToYPix(c_duMargin * 2),
-		_cxIcon + _XDUToXPix(c_duMargin + c_duLabelWidth), _YDUToYPix(c_duLabelHeight * 3),
+		wideLabelX, _cyIcon + _YDUToYPix(c_duMargin * 2),
+		wideLabelWidth, _YDUToYPix(c_duLabelHeight * 3),
+		SWP_NOZORDER
+	);
+
+	constexpr int c_duGitHubLinkY = (c_duLabelHeight * 3) + (c_duMargin * 2) + c_duLabelMargin;
+
+	hdwp = DeferWindowPos(
+		hdwp, _hwndGitHubLink, NULL,
+		wideLabelX, _cyIcon + _YDUToYPix(c_duGitHubLinkY),
+		wideLabelWidth, labelHeight,
+		SWP_NOZORDER
+	);
+
+	constexpr int c_duOKButtonX = c_duDialogWidth - c_duButtonMargin - c_duButtonWidth;
+	constexpr int c_duOKButtonY = c_duDialogHeight - c_duButtonMargin - c_duButtonHeight;
+
+	hdwp = DeferWindowPos(
+		hdwp, _hwndOKButton, NULL,
+		_cxIcon + _XDUToXPix(c_duOKButtonX), _cyIcon + _YDUToYPix(c_duOKButtonY),
+		_XDUToXPix(c_duButtonWidth), _YDUToYPix(c_duButtonHeight),
 		SWP_NOZORDER
 	);
 
@@ -185,7 +255,7 @@ HRESULT CAboutDialog::RegisterWindowClass()
 CAboutDialog *CAboutDialog::CreateAndShow(HWND hwndParent)
 {
 	CAboutDialog *pDialog = Create(
-		0,
+		WS_EX_DLGMODALFRAME,
 		L"About Windows NT Modding Utility",
 		WS_CAPTION | WS_SYSMENU,
 		0, 0, 0, 0,
@@ -197,6 +267,8 @@ CAboutDialog *CAboutDialog::CreateAndShow(HWND hwndParent)
 	if (!pDialog)
 		return nullptr;
 
+	// Disable parent window to make it unclickable (like a modal dialog)
+	EnableWindow(hwndParent, FALSE);
 	ShowWindow(pDialog->_hwnd, SW_SHOW);
 	return pDialog;
 }
