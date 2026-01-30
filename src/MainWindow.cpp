@@ -9,48 +9,8 @@
 
 #include "Util.h"
 
-const WCHAR c_szGitHubURL[] = L"https://github.com/get-ntmu/NTMU";
 const WCHAR c_szHelpURL[] = L"https://github.com/get-ntmu/NTMU/wiki";
 const WCHAR c_szGetPacksURL[] = L"https://get-ntmu.github.io//#!/packs";
-
-INT_PTR CALLBACK CMainWindow::s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-	switch (uMsg)
-	{
-		case WM_INITDIALOG:
-		{
-			WCHAR szFormat[256], szBuffer[256];
-			GetDlgItemTextW(hWnd, IDC_VERSION, szFormat, 256);
-			swprintf_s(
-				szBuffer, 256, szFormat,
-				VER_MAJOR, VER_MINOR, VER_REVISION
-			);
-			SetDlgItemTextW(hWnd, IDC_VERSION, szBuffer);
-			return TRUE;
-		}
-		case WM_CLOSE:
-			EndDialog(hWnd, IDCANCEL);
-			return TRUE;
-		case WM_COMMAND:
-			switch (wParam)
-			{
-				case IDC_GITHUB:
-					ShellExecuteW(
-						hWnd, L"open",
-						c_szGitHubURL,
-						NULL, NULL,
-						SW_SHOWNORMAL
-					);
-					// fall-thru
-				case IDOK:
-				case IDCANCEL:
-					EndDialog(hWnd, wParam);
-			}
-			return TRUE;
-		default:
-			return FALSE;
-	}
-}
 
 LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -175,9 +135,6 @@ LRESULT CMainWindow::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDM_HELPABOUT:
 				{
 					CAboutDialog *pAboutDialog = CAboutDialog::CreateAndShow(hWnd);
-#if 0
-					DialogBoxParamW(g_hinst, MAKEINTRESOURCEW(IDD_ABOUT), hWnd, s_AboutDlgProc, NULL);
-#endif
 					break;
 				}
 			}

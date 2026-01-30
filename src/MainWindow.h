@@ -68,8 +68,6 @@ private:
 	CPack _pack;
 	bool _fApplying;
 
-	static INT_PTR CALLBACK s_AboutDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
 	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
 	void _OnCreate();

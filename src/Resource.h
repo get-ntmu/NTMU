@@ -31,7 +31,3 @@
 #define IDS_NOPACKLOADED       408
 #define IDS_NOTSPECIFIED       409
 #define IDS_CLOSE              410
-
-#define IDD_ABOUT              500
-#define IDC_VERSION            501
-#define IDC_GITHUB             502

@@ -48,21 +48,6 @@ STRINGTABLE
 	IDS_CLOSE          "&Close"
 }
 
-IDD_ABOUT DIALOG 0, 0, 200, 100
-STYLE WS_CAPTION | WS_SYSMENU | DS_SETFONT | DS_CENTER
-EXSTYLE WS_EX_DLGMODALFRAME
-CAPTION "About Windows NT Modding Utility"
-FONT 8, "MS Shell Dlg 2"
-{
-	ICON IDI_NTMU, -1, 8, 8, 21, 20
-	LTEXT "Windows NT Modding Utility", -1, 37, 8, 155, 8
-	LTEXT "Version %u.%u.%u", IDC_VERSION, 37, 20, 155, 8
-	LTEXT "NTMU is a system file modification tool for Windows. It is free and open-source software, licensed under the GNU General Public License (GPL) 3.0.",
-		-1, 8, 36, 184, 24
-	DEFPUSHBUTTON "OK", IDOK, 142, 78, 50, 14
-	PUSHBUTTON "&GitHub", IDC_GITHUB, 88, 78, 50, 14
-}
-
 #include <ntverp.h>
 #define VER_FILETYPE                    VFT_APP
 #define VER_FILESUBTYPE                 VFT_UNKNOWN
