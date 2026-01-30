@@ -34,9 +34,9 @@ LRESULT CAboutDialog::v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 			if (LOWORD(wParam) == IDOK)
 				SendMessageW(hWnd, WM_CLOSE, 0, 0);
 			return 0;
-		// Mimic dialog IDCANCEL behavior
+		// Mimic dialog IDOK/IDCANCEL behavior
 		case WM_KEYDOWN:
-			if (wParam == VK_ESCAPE)
+			if (wParam == VK_RETURN || wParam == VK_ESCAPE)
 				SendMessageW(hWnd, WM_CLOSE, 0, 0);
 			return 0;
 		case WM_NOTIFY:
