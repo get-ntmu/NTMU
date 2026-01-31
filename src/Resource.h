@@ -7,19 +7,6 @@
 
 #define IDI_NTMU               100
 
-#define IDM_MAINMENU           200
-#define IDM_FILEOPEN           201
-#define IDM_FILEUNLOAD         202
-#define IDM_FILEEXIT           203
-#define IDM_TOOLSKILLEXPLORER  204
-#define IDM_TOOLSCLEARICOCACHE 205
-#define IDM_TOOLSSYSRESTORE    206
-#define IDM_HELPTOPICS         207
-#define IDM_HELPGETPACKS       208
-#define IDM_HELPABOUT          209
-
-#define IDA_MAIN               300
-
 #define IDS_MAINWND            400
 #define IDS_PACKNAME           401
 #define IDS_PACKAUTHOR         402

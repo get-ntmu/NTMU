@@ -299,10 +299,60 @@ DWP:
 	}
 }
 
+void CMainWindow::_CreateMenu()
+{
+#define BEGIN_SUBMENU() \
+	hmenuSub = CreateMenu();
+
+#define MENU_ITEM(id, translation)\
+	AppendMenuW(hmenuSub, 0, id, _pTranslations->menu_##translation);
+
+#define MENU_SEPARATOR() \
+	AppendMenuW(hmenuSub, MF_SEPARATOR, -1, nullptr);
+
+#define END_SUBMENU(translation) \
+	AppendMenuW(hmenu, MF_POPUP, (UINT_PTR)hmenuSub, _pTranslations->menu_##translation);
+
+	HMENU hmenu = CreateMenu();
+	HMENU hmenuSub;
+
+	BEGIN_SUBMENU()
+		MENU_ITEM(IDM_FILEOPEN,                            file_open)
+		MENU_ITEM(IDM_FILEUNLOAD,                        file_unload)
+		MENU_SEPARATOR()
+		MENU_ITEM(IDM_FILEEXIT,                            file_exit)
+	END_SUBMENU(file)
+
+	BEGIN_SUBMENU()
+		MENU_ITEM(IDM_TOOLSKILLEXPLORER,      tools_restart_explorer)
+		MENU_ITEM(IDM_TOOLSCLEARICOCACHE,     tools_clear_icon_cache)
+		MENU_ITEM(IDM_TOOLSSYSRESTORE,          tools_system_restore)
+	END_SUBMENU(tools)
+
+	BEGIN_SUBMENU()
+		MENU_ITEM(IDM_HELPTOPICS,                        help_topics)
+		MENU_ITEM(IDM_HELPGETPACKS,                   help_get_packs)
+		MENU_ITEM(IDM_HELPABOUT,                          help_about)
+	END_SUBMENU(help)
+
+	SetMenu(_hwnd, hmenu);
+
+#undef BEGIN_SUBMENU
+#undef MENU_ITEM
+#undef MENU_SEPARATOR
+#undef END_SUBMENU
+}
+
 void CMainWindow::_OnCreate()
 {
 	_UnloadPack();
-	_hAccel = LoadAcceleratorsW(g_hinst, MAKEINTRESOURCEW(IDA_MAIN));
+
+	_CreateMenu();
+	static const ACCEL s_rgAccels[] = {
+		{ FVIRTKEY | FCONTROL, 'O',   IDM_FILEOPEN },
+		{ FVIRTKEY | FCONTROL, 'W', IDM_FILEUNLOAD }
+	};
+	_hAccel = CreateAcceleratorTableW((LPACCEL)s_rgAccels, ARRAYSIZE(s_rgAccels));
 
 	static LPCWSTR s_rgMetaNames[MI_COUNT] = {
 		_pTranslations->pack_name,
@@ -935,7 +985,6 @@ HRESULT CMainWindow::RegisterWindowClass()
 	wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
 	wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
 	wc.hIcon = LoadIconW(g_hinst, MAKEINTRESOURCEW(IDI_NTMU));
-	wc.lpszMenuName = MAKEINTRESOURCEW(IDM_MAINMENU);
 	return CWindow::RegisterWindowClass(&wc);
 }
 

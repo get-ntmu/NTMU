@@ -9,6 +9,16 @@ static constexpr WCHAR c_szMainWindowClass[] = L"NTMU_MainWindow";
 
 #define IDC_APPLY        1000
 
+#define IDM_FILEOPEN           201
+#define IDM_FILEUNLOAD         202
+#define IDM_FILEEXIT           203
+#define IDM_TOOLSKILLEXPLORER  204
+#define IDM_TOOLSCLEARICOCACHE 205
+#define IDM_TOOLSSYSRESTORE    206
+#define IDM_HELPTOPICS         207
+#define IDM_HELPGETPACKS       208
+#define IDM_HELPABOUT          209
+
 class CMainWindow : public CNTMUWindowBase<CMainWindow, c_szMainWindowClass>
 {
 private:
@@ -73,6 +83,7 @@ private:
 
 	LRESULT v_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
+	void _CreateMenu();
 	void _OnCreate();
 	void _UpdateMetrics();
 	void _UpdateLayout();

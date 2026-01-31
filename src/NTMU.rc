@@ -3,36 +3,6 @@
 
 IDI_NTMU  ICON  "res\\ntmu.ico"
 
-IDM_MAINMENU MENU
-{
-	POPUP "&File"
-	{
-		MENUITEM "&Open Pack...\tCtrl+O",               IDM_FILEOPEN
-		MENUITEM "&Unload Pack...\tCtrl+W"              IDM_FILEUNLOAD
-		MENUITEM SEPARATOR
-		MENUITEM "E&xit\tAlt+F4"                        IDM_FILEEXIT
-	}
-	POPUP "&Tools"
-	{
-		MENUITEM "&Restart Explorer"                    IDM_TOOLSKILLEXPLORER
-		MENUITEM "&Clear Icon/Thumbnail Cache"          IDM_TOOLSCLEARICOCACHE
-		MENUITEM "Manage &System Restore..."            IDM_TOOLSSYSRESTORE
-	}
-	POPUP "&Help"
-	{
-		MENUITEM "&Help Topics..."                      IDM_HELPTOPICS
-		MENUITEM "&Get Packs..."                        IDM_HELPGETPACKS
-		MENUITEM SEPARATOR
-		MENUITEM "&About Windows NT Modding Utility..." IDM_HELPABOUT
-	}
-}
-
-IDA_MAIN ACCELERATORS
-{
-	"O", IDM_FILEOPEN, VIRTKEY, CONTROL
-	"W", IDM_FILEUNLOAD, VIRTKEY, CONTROL
-}
-
 STRINGTABLE
 {
 	IDS_MAINWND        "Windows NT Modding Utility"
