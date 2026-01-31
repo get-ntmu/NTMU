@@ -3,21 +3,6 @@
 
 IDI_NTMU  ICON  "res\\ntmu.ico"
 
-STRINGTABLE
-{
-	IDS_MAINWND        "Windows NT Modding Utility"
-	IDS_PACKNAME       "Name:"
-	IDS_PACKAUTHOR     "Author:"
-	IDS_PACKVERSION    "Version:"
-	IDS_APPLY          "&Apply"
-	IDS_NOPREVIEW      "No preview"
-	IDS_NOREADME       "This pack does not have a README"
-	IDS_NOOPTIONS      "This pack does not have any options"
-	IDS_NOPACKLOADED   "No pack loaded"
-	IDS_NOTSPECIFIED   "(Not specified)"
-	IDS_CLOSE          "&Close"
-}
-
 #include <ntverp.h>
 #define VER_FILETYPE                    VFT_APP
 #define VER_FILESUBTYPE                 VFT_UNKNOWN
