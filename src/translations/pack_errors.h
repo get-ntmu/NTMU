@@ -38,7 +38,7 @@ typedef struct _mm_pack_errors_translations_t
     wchar_t *(*option_arg_bad_name)(const wchar_t *arg, const wchar_t *name);
     wchar_t *(*option_arg_non_number_value)(const wchar_t *arg, const wchar_t *value);
     wchar_t *(*option_arg_bad_value)(const wchar_t *arg, const wchar_t *value);
-    wchar_t *(*bad_bool_value)(unsigned int value);
+    wchar_t *(*invalid_bool_value)(unsigned int value);
 } mm_pack_errors_translations_t;
 
 MM_DEC const mm_pack_errors_translations_t *mm_get_pack_errors_translations(void);
@@ -152,7 +152,7 @@ static wchar_t *mm_pack_errors_translations_option_arg_bad_value_en_US(const wch
     MM_FORMATTED_STRING_BODY_W(L"Improperly formed option argument '%s'. Invalid option value %s specified.", arg, value)
 }
 
-static wchar_t *mm_pack_errors_translations_bad_bool_value_en_US(unsigned int value)
+static wchar_t *mm_pack_errors_translations_invalid_bool_value_en_US(unsigned int value)
 {
     MM_FORMATTED_STRING_BODY_W(L"Invalid boolean value %u.", value)
 }
@@ -180,7 +180,7 @@ static const mm_pack_errors_translations_t mm_pack_errors_translations_en_US = {
     mm_pack_errors_translations_option_arg_bad_name_en_US,
     mm_pack_errors_translations_option_arg_non_number_value_en_US,
     mm_pack_errors_translations_option_arg_bad_value_en_US,
-    mm_pack_errors_translations_bad_bool_value_en_US,
+    mm_pack_errors_translations_invalid_bool_value_en_US,
 };
 
 static const mm_translation_mapping_t mm_pack_errors_map[] = {

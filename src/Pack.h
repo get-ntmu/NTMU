@@ -1,6 +1,7 @@
 #pragma once
 #include "NTMU.h"
 #include "INI.h"
+#include "translations/pack_errors.h"
 
 class CPack
 {
@@ -74,12 +75,12 @@ private:
 
 	inline static bool _ValidateBoolean(UINT uValue)
 	{
+		static const mm_pack_errors_translations_t *s_pTranslations
+			= mm_get_pack_errors_translations();
 		if (uValue != 0 && uValue != 1)
 		{
-			std::wstring message = L"Invalid boolean value '";
-			message += std::to_wstring(uValue);
-			message += L"'";
-			MainWndMsgBox(message.c_str(), MB_ICONERROR);
+			msgmap::wstring spszError = s_pTranslations->invalid_bool_value(uValue);
+			MainWndMsgBox(spszError, MB_ICONERROR);
 			return false;
 		}
 		return true;

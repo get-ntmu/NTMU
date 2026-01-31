@@ -10,6 +10,8 @@
 #include <shlobj.h>
 #include <sstream>
 
+static const mm_pack_errors_translations_t *s_pTranslations = nullptr;
+
 CPack::PackOption *CPack::_FindOption(LPCWSTR pszID)
 {
 	if (!pszID)
@@ -41,20 +43,16 @@ bool CPack::_ConstructPackFilePath(LPCWSTR pszPath, std::wstring &out)
 	if (path.find(L':') != std::wstring::npos // Has drive letter
 	|| path[0] == L'\\') // Root or UNC path
 	{
-		std::wstring message = L"Encountered non-relative path '";
-		message += pszPath;
-		message += L"'";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->non_relative_path(pszPath);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 
 	if (path.find(L'"') != std::wstring::npos
 	|| path.find(L'\'') != std::wstring::npos)
 	{
-		std::wstring message = L"Encountered path with quotes '";
-		message += pszPath;
-		message += L"'";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->quoted_path(pszPath);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 
@@ -63,10 +61,8 @@ bool CPack::_ConstructPackFilePath(LPCWSTR pszPath, std::wstring &out)
 	{
 		if ((pos == 0 || path[pos - 1] == '\\') || (pos == path.length() - 1 || path[pos + 2] == '\\'))
 		{
-			std::wstring message = L"Encountered path with upwards directory traversal '";
-			message += pszPath;
-			message += L"'";
-			MainWndMsgBox(message.c_str(), MB_ICONERROR);
+			msgmap::wstring spszError = s_pTranslations->upwards_path(pszPath);
+			MainWndMsgBox(spszError, MB_ICONERROR);
 			return false;
 		}
 		pos += 2;
@@ -79,19 +75,15 @@ bool CPack::_ConstructPackFilePath(LPCWSTR pszPath, std::wstring &out)
 	DWORD dwFileAttrs = GetFileAttributesW(szResult);
 	if (dwFileAttrs == INVALID_FILE_ATTRIBUTES)
 	{
-		std::wstring message = L"File at path '";
-		message += szResult;
-		message += L"' doesn't exist.";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->nonexistent_file(szResult);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 
 	if (dwFileAttrs & FILE_ATTRIBUTE_DIRECTORY)
 	{
-		std::wstring message = L"Path '";
-		message += szResult;
-		message += L"' points to a directory, not a file.";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->file_path_is_dir(szResult);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 
@@ -109,19 +101,15 @@ bool CPack::_ConstructExternalFilePath(LPCWSTR pszPath, std::wstring &out)
 	WCHAR szPath[MAX_PATH];
 	if (!ExpandEnvironmentStringsW(pszPath, szPath, MAX_PATH))
 	{
-		std::wstring message = L"Failed to expand environment strings for path '";
-		message += pszPath;
-		message += L"'";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->expand_environ_failed(pszPath);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 
 	if (PathIsRelativeW(szPath))
 	{
-		std::wstring message = L"Relative path '";
-		message += szPath;
-		message += L"' for external file encountered";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->extern_relative_path(szPath);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 
@@ -151,12 +139,8 @@ bool CPack::_ValidateOptionValue(PackOption &opt, UINT uValue)
 	}
 	if (!fDefaultIsValid)
 	{
-		std::wstring message = L"Invalid value ";
-		message += std::to_wstring(uValue);
-		message += L" for option '";
-		message += opt.id;
-		message += L"'";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->invalid_option_value(uValue, opt.id.c_str());
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 	return true;
@@ -172,29 +156,23 @@ inline bool StringToUInt(const std::wstring &s, UINT *i)
 	}
 	catch (const std::invalid_argument &)
 	{
-		std::wstring message = L"'";
-		message += s;
-		message += L"' is not an integer";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->value_not_int(s.c_str());
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 	// Disallow negative numbers
 	if (temp < 0)
 	{
-		std::wstring message = L"Negative integer value '";
-		message += std::to_wstring(temp);
-		message += L"'";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->negative_int_value(temp);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 	// Check for garbage characters
 	std::wstring temp2 = std::to_wstring(temp);
 	if (s.length() != temp2.length())
 	{
-		std::wstring message = L"Garbage characters after number string '";
-		message += s;
-		message += L"'";
-		MainWndMsgBox(message.c_str(), MB_ICONERROR);
+		msgmap::wstring spszError = s_pTranslations->garbage_after_int(s.c_str());
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 	*i = temp;
@@ -282,6 +260,7 @@ bool CPack::_CopyFileWithOldStack(LPCWSTR pszFrom, LPCWSTR pszTo)
 		if (!pBackslash)
 		{
 			Log(L"Failed to find backslash in path '%s'", szParentDirName);
+			return false;
 		}
 		*(pBackslash + 1) = L'\0';
 		dwFileAttrs = GetFileAttributesW(szParentDirName);
@@ -319,10 +298,8 @@ bool CPack::ParseOptionString(const std::wstring &s, std::vector<PackOptionDef> 
 		size_t index = opt.find(L'=');
 		if (index == std::wstring::npos)
 		{
-			std::wstring message = L"Missing '=' in option string '";
-			message += opt;
-			message += L"'";
-			MainWndMsgBox(message.c_str(), MB_ICONERROR);
+			msgmap::wstring spszError = s_pTranslations->option_no_equal(opt.c_str());
+			MainWndMsgBox(spszError, MB_ICONERROR);
 			return false;
 		}
 
@@ -352,6 +329,9 @@ void CPack::Reset()
 
 bool CPack::_Load(LPCWSTR pszPath, LoadSource loadSource)
 {
+	if (!s_pTranslations)
+		s_pTranslations = mm_get_pack_errors_translations();
+
 	Reset();
 
 	INIFile ini;
@@ -378,12 +358,8 @@ bool CPack::_Load(LPCWSTR pszPath, LoadSource loadSource)
 
 			if (uMinBuild && g_dwOSBuild < uMinBuild)
 			{
-				std::wstring message = L"This pack was designed for at minimum Windows build ";
-				message += std::to_wstring(uMinBuild);
-				message += L". You are running build ";
-				message += std::to_wstring(g_dwOSBuild);
-				message += L".";
-				MainWndMsgBox(message.c_str(), MB_ICONERROR);
+				msgmap::wstring spszError = s_pTranslations->os_too_old(uMinBuild, g_dwOSBuild);
+				MainWndMsgBox(spszError, MB_ICONERROR);
 				return false;
 			}
 
@@ -394,12 +370,8 @@ bool CPack::_Load(LPCWSTR pszPath, LoadSource loadSource)
 
 			if (uMaxBuild && g_dwOSBuild > uMaxBuild)
 			{
-				std::wstring message = L"This pack was designed for at most Windows build ";
-				message += std::to_wstring(uMaxBuild);
-				message += L". You are running build ";
-				message += std::to_wstring(g_dwOSBuild);
-				message += L".";
-				MainWndMsgBox(message.c_str(), MB_ICONERROR);
+				msgmap::wstring spszError = s_pTranslations->os_too_new(uMaxBuild, g_dwOSBuild);
+				MainWndMsgBox(spszError, MB_ICONERROR);
 				return false;
 			}
 
@@ -422,10 +394,8 @@ bool CPack::_Load(LPCWSTR pszPath, LoadSource loadSource)
 			LPCWSTR lpOptionName = sname + sizeof("Options");
 			if (_FindOption(lpOptionName))
 			{
-				std::wstring message = L"Duplicate option '";
-				message += lpOptionName;
-				message += L"'";
-				MainWndMsgBox(message.c_str(), MB_ICONERROR);
+				msgmap::wstring spszError = s_pTranslations->duplicate_option(lpOptionName);
+				MainWndMsgBox(spszError, MB_ICONERROR);
 				return false;
 			}
 			
@@ -611,17 +581,15 @@ bool CPack::_Load(LPCWSTR pszPath, LoadSource loadSource)
 		}
 		else
 		{
-			std::wstring message = L"Unexpected section with name '";
-			message += sname;
-			message += L"'";
-			MainWndMsgBox(message.c_str(), MB_ICONERROR);
+			msgmap::wstring spszError = s_pTranslations->unexpected_section(sname);
+			MainWndMsgBox(spszError, MB_ICONERROR);
 			return false;
 		}
 	}
 
 	if (!fPackSectionParsed)
 	{
-		MainWndMsgBox(L"No Pack section found", MB_ICONERROR);
+		MainWndMsgBox(s_pTranslations->no_pack_section, MB_ICONERROR);
 	}
 	
 	if (LoadSource::CommandLine == loadSource)
@@ -638,7 +606,6 @@ bool CPack::_Load(LPCWSTR pszPath, LoadSource loadSource)
 HRESULT CPack::_LoadCommandLineSettings()
 {
 	WCHAR *pszCommandLine = GetCommandLineW();
-	WCHAR szMsgErrorBuffer[1024] = {};
 	
 	int nArgs = 0;
 	WCHAR **ppszArgs = CommandLineToArgvW(pszCommandLine, &nArgs);
@@ -662,12 +629,8 @@ HRESULT CPack::_LoadCommandLineSettings()
 			if (arg.length() < c_optionLength + 2 ||
 				L':' != arg[c_optionLength])
 			{
-				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer), 
-					L"Improperly formed option argument \"%s\". It must specify a key and value "
-					L"in the format \"/option:key=value\".\r\n\r\n"
-					L"For example, \"/option:Files=1\".",
-					ppszArgs[i]);
-				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				msgmap::wstring spszError = s_pTranslations->option_arg_no_key(ppszArgs[i]);
+				MainWndMsgBox(spszError, MB_ICONERROR | MB_OK);
 				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
 			}
 			
@@ -675,10 +638,8 @@ HRESULT CPack::_LoadCommandLineSettings()
 			auto equalPosition = statement.find(L'=');
 			if (std::wstring::npos == equalPosition)
 			{
-				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
-					L"Improperly formed option argument \"%s\". No value specified.",
-					ppszArgs[i]);
-				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				msgmap::wstring spszError = s_pTranslations->option_arg_no_value(ppszArgs[i]);
+				MainWndMsgBox(spszError, MB_ICONERROR | MB_OK);
 				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
 			}
 			
@@ -687,10 +648,8 @@ HRESULT CPack::_LoadCommandLineSettings()
 			PackOption *pOption = _FindOption(key.c_str());
 			if (!pOption)
 			{
-				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
-					L"Improperly formed option argument \"%s\". Invalid option name \"%s\" specified.",
-					ppszArgs[i], key.c_str());
-				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				msgmap::wstring spszError = s_pTranslations->option_arg_bad_name(ppszArgs[i], key.c_str());
+				MainWndMsgBox(spszError, MB_ICONERROR | MB_OK);
 				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
 			}
 			
@@ -698,21 +657,16 @@ HRESULT CPack::_LoadCommandLineSettings()
 			UINT uValue = 0;
 			if (!StringToUInt(strValue.c_str(), &uValue))
 			{
-				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
-					L"Improperly formed option argument \"%s\". Option value \"%s\" could not be parsed "
-					L"as a number.",
-					ppszArgs[i], strValue.c_str());
-				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				msgmap::wstring spszError = s_pTranslations->option_arg_non_number_value(ppszArgs[i], strValue.c_str());
+				MainWndMsgBox(spszError, MB_ICONERROR | MB_OK);
 				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
 			}
 			
 			// Make sure the requested value is valid:
 			if (!_ValidateOptionValue(*pOption, uValue))
 			{
-				swprintf_s(szMsgErrorBuffer, ARRAYSIZE(szMsgErrorBuffer),
-					L"Improperly formed option argument \"%s\". Invalid option value \"%s\" specified.",
-					ppszArgs[i], strValue.c_str());
-				MainWndMsgBox(szMsgErrorBuffer, MB_ICONERROR | MB_OK);
+				msgmap::wstring spszError = s_pTranslations->option_arg_bad_value(ppszArgs[i], strValue.c_str());
+				MainWndMsgBox(spszError, MB_ICONERROR | MB_OK);
 				return HRESULT_FROM_WIN32(ERROR_BAD_ARGUMENTS);
 			}
 			

@@ -34,4 +34,4 @@ option_arg_non_number_value:
 option_arg_bad_value:
   "Improperly formed option argument '%arg:s%'. Invalid option value %value:s%
   specified."
-bad_bool_value: Invalid boolean value %value:u%.
+invalid_bool_value: Invalid boolean value %value:u%.
