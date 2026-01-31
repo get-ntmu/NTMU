@@ -1,16 +1,19 @@
 #include "INI.h"
 #include "Util.h"
+#include "translations/ini_errors.h"
 
 bool ParseINIFile(const wchar_t *path, INIFile &out)
 {
+	static const mm_ini_errors_translations_t *pTranslations
+		= mm_get_ini_errors_translations();
+
 	out.clear();
 
 	std::wifstream file(path);
 	if (!file)
 	{
-		WCHAR szError[MAX_PATH * 2];
-		swprintf_s(szError, L"Failed to open file '%s' for reading.", path);
-		MainWndMsgBox(szError, MB_ICONERROR);
+		msgmap::wstring spszError = pTranslations->open_failed(path);
+		MainWndMsgBox(spszError, MB_ICONERROR);
 		return false;
 	}
 
@@ -34,9 +37,8 @@ bool ParseINIFile(const wchar_t *path, INIFile &out)
 		{
 			if (line.back() != L']')
 			{
-				WCHAR szError[MAX_PATH];
-				swprintf_s(szError, L"Unclosed section header on line %d.", lines);
-				MainWndMsgBox(szError, MB_ICONERROR);
+				msgmap::wstring spszError = pTranslations->unclosed_section_header(lines);
+				MainWndMsgBox(spszError, MB_ICONERROR);
 				out.clear();
 				return false;
 			}
@@ -51,16 +53,14 @@ bool ParseINIFile(const wchar_t *path, INIFile &out)
 		// Parse values
 		if (out.size() == 0)
 		{
-			WCHAR szError[MAX_PATH];
-			swprintf_s(szError, L"Value outside of section on line %d.", lines);
-			MainWndMsgBox(szError, MB_ICONERROR);
+			msgmap::wstring spszError = pTranslations->value_outside_section(lines);
+			MainWndMsgBox(spszError, MB_ICONERROR);
 			return false;
 		}
 		if (line.find(L'=') == std::wstring::npos)
 		{
-			WCHAR szError[MAX_PATH];
-			swprintf_s(szError, L"Missing = on line %d.", lines);
-			MainWndMsgBox(szError, MB_ICONERROR);
+			msgmap::wstring spszError = pTranslations->missing_equals(lines);
+			MainWndMsgBox(spszError, MB_ICONERROR);
 			out.clear();
 			return false;
 		}
